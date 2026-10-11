@@ -31,7 +31,7 @@ Updated: 2026-10-11. **Milestone 1 is ready for user testing. Stop here.**
 - Repository: `https://github.com/pisomojadogrande/polyphon`. Initially empty. Origin corrected from the old `polyphony` URL.
 - Current environment checkout: `/workspace/polyphony` (old directory name only); no product references use the old repository name.
 - Generated clips, MIDI, reports, screenshots, Python environment, node_modules, build bundle, caches, and runtime state are ignored. No user recordings were supplied or committed.
-- Foundation is prepared for `main`; publication verification follows before final handoff.
+- Foundation pushed to `main` and remote commit verified on 2026-10-11. All requirements, plans, setup instructions, tests, and these continuation notes are in the repository.
 
 ## User's next step
 Follow README setup, open localhost, test 10–30 second excerpts of a solo voice, a cappella ensemble, and voice/instrument mix. Download MIDI/reports and supply usefulness ratings and error timestamps using `docs/evaluation.md`. Stop after those results; we should refine this experiment before moving to cloud.
