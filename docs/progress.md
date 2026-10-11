@@ -18,7 +18,7 @@ Updated: 2026-10-11. **Milestone 1 is ready for user testing. Stop here.**
 - Actual serial batch evaluation passed for melody and silence and saved reports with empty human-rating fields.
 - Headless Chromium end-to-end check passed: real upload/transcription, MIDI import/play/pause/seek/speed/stop, download, source deletion, result deletion, and CLI-generated MIDI import; no JavaScript errors. Desktop/mobile layout inspected, including no horizontal overflow at 390px. Automated browser checks verify mechanics, not perceived audio quality.
 - Linux x86-64, Node 24.19.0, Python 3.11.17; portable macOS setup is documented but unverified. Windows support uses WSL2.
-- GitHub Actions workflow exists but remote execution results must be distinguished from these local checks.
+- GitHub Actions passed both jobs (TypeScript/Python checks and actual Basic Pitch smoke) on code commit `af373980f9f4b4cec99e26af1002f2051bc5b856`: https://github.com/pisomojadogrande/polyphon/actions/runs/38185318835. The final handoff commit changes documentation only and skips redundant CI.
 
 ## Important dependency findings
 - Basic Pitch pulls TensorFlow on Python 3.11 even though this worker uses ONNX. Imports contribute substantially to ~756–862 MiB measured RSS.
