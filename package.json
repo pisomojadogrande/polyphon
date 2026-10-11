@@ -1,0 +1,28 @@
+{
+  "name": "polyphon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc --noEmit && esbuild web/app.ts --bundle --format=esm --outfile=dist/app.js",
+    "start": "node src/server.ts",
+    "dev": "npm run build && npm start",
+    "cli": "node src/cli.ts",
+    "test": "node --test tests/*.test.ts",
+    "test:python": ".venv/bin/python -m unittest discover -s python -p 'test_*.py'",
+    "fixture": "python3 python/make_fixture.py",
+    "check": "npm run build && npm test",
+    "evaluate": "node src/evaluate.ts"
+  },
+  "dependencies": {
+    "@tonejs/midi": "2.0.28"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  }
+}

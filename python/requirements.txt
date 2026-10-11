@@ -1,0 +1,6 @@
+# Python 3.11. Explicit ONNX inference; upstream also installs TensorFlow on Python 3.11.
+basic-pitch[onnx]==0.4.0
+# TensorFlow 2.14 (an upstream dependency) cannot import with NumPy 2.x.
+numpy==1.26.4
+# Basic Pitch imports pkg_resources, removed in setuptools 81+.
+setuptools==80.9.0

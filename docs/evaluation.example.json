@@ -1,0 +1,5 @@
+[
+  {"name":"Solo voice — short phrase","category":"isolated voice","input":"work/clips/solo.wav","guidance":{"tempo":120,"timeSignature":[4,4],"voices":"one singer"}},
+  {"name":"A cappella ensemble — short phrase","category":"a cappella ensemble","input":"work/clips/ensemble.wav","guidance":{"tempo":120,"timeSignature":[4,4],"voices":"SATB"}},
+  {"name":"Voice with instruments — short phrase","category":"voice with instruments","input":"work/clips/mixed.wav","guidance":{"tempo":120,"timeSignature":[4,4],"voices":"lead voice, piano"}}
+]

@@ -1,0 +1,38 @@
+# Polyphon — agreed requirements
+
+Authority: the user's agreed onboarding requirements and current request (2026-10-11). `original-idea.md` preserves the attached idea as background; its request to ask clarifying questions does not override the current instruction to build this milestone.
+
+## Product
+- Repository: `pisomojadogrande/polyphon`, renamed from `pisomojadogrande/polyphony`; initially empty.
+- Web application: audio → MIDI → eventually editable, exportable sheet music.
+- Input includes multiple a cappella voices and voices with instruments. Rough transcription is acceptable.
+- The user may supply key, tempo, time signature, and voice information as we discover useful guidance.
+- Recordings typically last three minutes and usually under ten minutes. Begin evaluation with much shorter clips.
+- Processing may take several minutes. Show real percentage progress where measurable, named stages otherwise.
+- Clean, functional interface with visibility into processing.
+
+## Implementation and evaluation
+- TypeScript/Node.js application and CLI. Use Python when useful OSS transcription packages require it.
+- Composable modules usable by the CLI and web application, with meaningful unit tests.
+- Evaluate Basic Pitch locally before choosing cloud processing infrastructure.
+- Measure transcription usefulness, runtime, and memory across representative recordings.
+- Provide MIDI playback for evaluating short clips, setup instructions, and clear testing instructions.
+
+## Future cloud constraints (not authorized in milestone 1)
+- AWS, initial target roughly $5/month and minimal idle cost. Separate test and production accounts, region `us-east-1`.
+- Prefer CDK, DynamoDB, and serverless services. Decide processing architecture after local measurements; the budget is a target, not a demonstrated guarantee.
+- Temporarily store uploaded audio, delete it after processing, use automatic expiry as a backstop.
+- Retain MIDI and scores with storage caps and deletion controls.
+- Initially one invited user with email/password authentication. Multiple users and Stripe billing later; sandbox in test, live in production.
+- GitHub Actions with OIDC temporary credentials. Test deployment from `main`, approval required for production.
+- User performs AWS bootstrap and trust configuration. Never request long-term credentials or direct AWS write access.
+- Original idea also proposes monthly activity limits/cost cutoff. Refine limits with measured usage before cloud implementation.
+
+## Work sequence and stopping rules
+1. **Current task:** project foundation and local audio-to-MIDI experiment, including MIDI playback. **Do not deploy to AWS.** Stop when the first transcription milestone is ready and give instructions for testing.
+2. Pause for user testing when audio-to-MIDI playback becomes usable; refine next phase from feedback.
+3. Later cloud transcription, with another user-testing pause when usable.
+4. First rendered score, with another user-testing pause when usable.
+5. Refine musical lines, rhythm/key guidance, editing/export, and eventual billing from results. These are not designed or implemented yet.
+
+Save these requirements and all detailed phase plans to the repository. Keep current progress and continuation notes up to date so work can resume with clean context.

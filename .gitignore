@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.venv/
+work/
+.polyphon/
+__pycache__/
+*.pyc
+.env
+.DS_Store

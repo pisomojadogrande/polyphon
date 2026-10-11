@@ -1,0 +1,56 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm, readdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createApp } from '../src/server.ts';
+import type { AddressInfo } from 'node:net';
+import { request } from 'node:http';
+test('local HTTP access guards, upload validation, failure state and deletion', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'polyphon-http-'));
+  const { server } = await createApp(dir, async () => { throw new Error('Cannot decode audio'); });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+  t.after(async () => { await new Promise<void>(r => server.close(() => r())); await rm(dir, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  assert.equal((await fetch(base + '/api/jobs', { headers: { Origin: 'https://attacker.example' } })).status, 403);
+  const badHost = await new Promise<number>(resolve => { const req = request(base + '/api/jobs', { headers: { Host: 'attacker.example' } }, res => { res.resume(); resolve(res.statusCode!); }); req.end(); });
+  assert.equal(badHost, 403);
+  assert.equal((await fetch(base + '/api/jobs?name=x.txt', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: 'x' })).status, 400);
+  assert.equal((await fetch(base + '/api/jobs', { method: 'POST', body: 'x' })).status, 415);
+  assert.equal((await fetch(base + '/api/jobs?name=x.wav', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: '' })).status, 400);
+  const response = await fetch(base + '/api/jobs?name=broken.wav', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: 'not audio' });
+  assert.equal(response.status, 202); const job = await response.json() as { id: string };
+  // Missing interpreter or invalid audio both produce a recoverable failure, never a result.
+  let state: { progress: { stage: string } } | undefined;
+  const limit = Date.now() + 60000;
+  do { await new Promise(r => setTimeout(r, 100)); state = await (await fetch(base + `/api/jobs/${job.id}`)).json() as typeof state; } while (state?.progress.stage !== 'failed' && Date.now() < limit);
+  assert.equal(state?.progress.stage, 'failed');
+  assert.deepEqual(await readdir(join(dir, 'uploads')), []);
+  assert.equal((await fetch(base + `/api/jobs/${job.id}/midi`)).status, 409);
+  assert.equal((await fetch(base + `/api/jobs/${job.id}`, { method: 'DELETE' })).status, 200);
+  assert.equal((await fetch(base + `/api/jobs/${job.id}`)).status, 404);
+});
+test('completed result downloads MIDI/report and remains available after restart', async t => {
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'polyphon-http-success-'));
+  const report = { schemaVersion: 1, engine: 'fixture', backend: 'fixture', durationSeconds: 1, noteCount: 0, runtimeSeconds: 1, peakMemoryMiB: 1, stageSeconds: {}, guidance: { tempo: 120, timeSignature: [4, 4] as [number, number] }, warnings: [] } as const;
+  const { server, jobs } = await createApp(dir, async options => {
+    await mkdir(options.output, { recursive: true });
+    const midiPath = join(options.output, 'transcription.mid'), reportPath = join(options.output, 'report.json');
+    await writeFile(midiPath, 'MThd mock'); await writeFile(reportPath, JSON.stringify(report));
+    return { midiPath, reportPath, report: { ...report, warnings: [] } };
+  });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+  t.after(async () => { await new Promise<void>(r => server.close(() => r())); await rm(dir, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const response = await fetch(base + '/api/jobs?name=good.wav', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: 'mock audio' });
+  assert.equal(response.status, 202); const job = await response.json() as { id: string };
+  const limit = Date.now() + 2000;
+  while (jobs.pending && Date.now() < limit) await new Promise(r => setTimeout(r, 10));
+  assert.equal(jobs.jobs.get(job.id)?.progress.stage, 'complete');
+  const midi = await fetch(base + `/api/jobs/${job.id}/midi`);
+  assert.equal(midi.headers.get('content-type'), 'audio/midi'); assert.equal(await midi.text(), 'MThd mock');
+  const result = await (await fetch(base + `/api/jobs/${job.id}/report`)).json() as { noteCount: number };
+  assert.equal(result.noteCount, 0); assert.deepEqual(await readdir(join(dir, 'uploads')), []);
+  await jobs.initialize(); assert.equal(jobs.jobs.get(job.id)?.progress.stage, 'complete');
+});
