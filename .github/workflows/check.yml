@@ -15,12 +15,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: python -m unittest discover -s python -p 'test_*.py'
   basic-pitch-smoke:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.14']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,12 +28,19 @@ jobs:
           cache: npm
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python }}
           cache: pip
-          cache-dependency-path: python/requirements-lock.txt
+          cache-dependency-path: |
+            python/requirements-lock.txt
+            python/vendor/basic-pitch-onnx/pyproject.toml
       - run: npm ci
       - run: python -m venv .venv
       - run: .venv/bin/python -m pip install -r python/requirements-lock.txt
+      - run: .venv/bin/python -m pip check
+      - run: npm run test:python
       - run: npm run fixture
-      - run: npm run cli -- work/fixtures/melody.wav --out work/smoke
-      - run: .venv/bin/python python/check_smoke.py work/smoke
+      - run: npm run cli -- work/fixtures/melody.wav --out work/smoke/melody --tempo 90 --time 3/4
+      - run: npm run cli -- work/fixtures/chords.wav --out work/smoke/chords
+      - run: npm run cli -- work/fixtures/silence.wav --out work/smoke/silence
+      - run: .venv/bin/python python/check_smoke.py work/smoke/melody
+      - run: .venv/bin/python python/check_regression.py work/smoke

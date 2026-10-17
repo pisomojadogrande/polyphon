@@ -18,6 +18,9 @@ Authority: the user's agreed onboarding requirements and current request (2026-1
 - Measure transcription usefulness, runtime, and memory across representative recordings.
 - Provide MIDI playback for evaluating short clips, setup instructions, and clear testing instructions.
 
+## Runtime amendment (2026-10-17)
+- User has Python 3.14 and requests compatible dependencies. Support standard CPython 3.14 for the local transcription milestone; preserve its existing musical behavior and testing pause.
+
 ## Future cloud constraints (not authorized in milestone 1)
 - AWS, initial target roughly $5/month and minimal idle cost. Separate test and production accounts, region `us-east-1`.
 - Prefer CDK, DynamoDB, and serverless services. Decide processing architecture after local measurements; the budget is a target, not a demonstrated guarantee.

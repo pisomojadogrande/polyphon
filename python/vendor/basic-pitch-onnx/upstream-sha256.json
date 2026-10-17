@@ -1,0 +1,11 @@
+{
+  "wheel": "basic_pitch-0.4.0-py2.py3-none-any.whl",
+  "wheel_sha256": "738adb503aae7fdfc7d1e1511aa0ce35052315f260a19531ef4c356708425db0",
+  "files": {
+    "basic_pitch/constants.py": "3374330dbf374cc4ba3d76eba6aad06e089a40252c4c68b3bf93510bd7b37214",
+    "basic_pitch/note_creation.py": "9c813509acf57ed9b902d2b9fcd9f8118b2c5ffe568a06df9cfa60f5c5ee2572",
+    "basic_pitch/inference.py": "b2dd343a318b85ee91c6d660eae2f48d7e39a8678d82575ab606c1c3617a6269",
+    "basic_pitch/saved_models/icassp_2022/nmp.onnx": "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec",
+    "basic_pitch-0.4.0.dist-info/LICENSE": "929c910bae2152fa87199a5d0660e09263419b7eee6d4b301d05ee2aaf211c37"
+  }
+}

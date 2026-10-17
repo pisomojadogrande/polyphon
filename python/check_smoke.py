@@ -1,5 +1,6 @@
 """Validate a real Basic Pitch melody result; used by CI after inference."""
 import json
+import importlib.util
 from pathlib import Path
 import sys
 import pretty_midi
@@ -9,6 +10,8 @@ report = json.loads((result / 'report.json').read_text())
 midi = pretty_midi.PrettyMIDI(str(result / 'transcription.mid'))
 notes = [note for track in midi.instruments for note in track.notes]
 assert report['backend'] == 'ONNX'
+assert 'Polyphon ONNX' in report['engine']
+assert importlib.util.find_spec('tensorflow') is None, 'Smoke environment must be ONNX-only'
 assert report['durationSeconds'] == 5
 assert report['peakMemoryMiB'] > 0 and report['runtimeSeconds'] > 0
 assert len(notes) == report['noteCount']

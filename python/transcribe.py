@@ -48,9 +48,9 @@ def main():
         import numpy as np
         import librosa
         import pretty_midi
-        import basic_pitch
-        from basic_pitch import inference, note_creation
-        from basic_pitch.constants import AUDIO_N_SAMPLES, AUDIO_SAMPLE_RATE, FFT_HOP
+        import polyphon_basic_pitch as basic_pitch
+        from polyphon_basic_pitch import inference, note_creation
+        from polyphon_basic_pitch.constants import AUDIO_N_SAMPLES, AUDIO_SAMPLE_RATE, FFT_HOP
         model_path = Path(basic_pitch.__file__).parent / "saved_models" / "icassp_2022" / "nmp.onnx"
         model = inference.Model(model_path)
     stages["loading"] = time.perf_counter() - started
@@ -98,7 +98,7 @@ def main():
     midi.write(args.output)
     stages["writing"] = time.perf_counter() - write_start
     emit("complete", metrics={
-        "schemaVersion": 1, "engine": "basic-pitch " + importlib.metadata.version("basic-pitch"),
+        "schemaVersion": 1, "engine": f"basic-pitch {basic_pitch.UPSTREAM_VERSION} (Polyphon ONNX {importlib.metadata.version('polyphon-basic-pitch-onnx')})",
         "backend": "ONNX", "durationSeconds": duration, "noteCount": len(events),
         "runtimeSeconds": time.perf_counter() - started, "peakMemoryMiB": peak_memory_mib(),
         "stageSeconds": stages,

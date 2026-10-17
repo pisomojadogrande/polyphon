@@ -1,9 +1,12 @@
 node_modules/
 dist/
 .venv/
+.venv-old/
 work/
 .polyphon/
 __pycache__/
 *.pyc
 .env
 .DS_Store
+*.egg-info/
+python/vendor/**/build/

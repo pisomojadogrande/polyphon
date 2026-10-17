@@ -4,7 +4,7 @@
 
 Deliverables:
 - TypeScript shared guidance/result contracts and Python process adapter; TypeScript CLI.
-- Basic Pitch 0.4.0 ONNX inference on a CPU. Python 3.11; pin NumPy below 2 for compatibility with upstream TensorFlow dependency.
+- Basic Pitch 0.4.0 ONNX inference on a CPU. Updated 2026-10-17: support Python 3.14 using the attributed ONNX-only package; NumPy 2.4.6 and no TensorFlow.
 - Localhost web server and browser UI: upload, truthful stage/window progress, original-audio comparison, MIDI playback/seek/speed, download MIDI/report, cancel/delete.
 - Reports: runtime, stage times, peak worker RSS, audio length, note count, guidance and limitations. Store feedback separately from machine metrics.
 - Temporary uploads removed after success/failure/cancellation and startup recovery; output retention/cap and explicit deletion.
@@ -38,3 +38,11 @@ Acceptance:
 
 ## Milestone 1 completion
 Implementation and local verification complete on 2026-10-11; see `progress.md`. A batch evaluation runner and data-folder lock/graceful shutdown were added to support repeatable measurements and safe local use. **Paused for user listening tests.** Future phase detail remains provisional.
+
+
+## Python 3.14 compatibility fix (2026-10-17)
+- Confirm upstream metadata blocks Python 3.14 independently of ONNX support.
+- Package the same model, constants, and note extraction under a separate ONNX-only distribution/module namespace; retain provenance hashes and Apache-2.0 notices. Exclude incompatible unused backends instead of overriding TensorFlow or skipping dependency checks.
+- Pin CPython 3.14-compatible runtime versions and regenerate a transitive lock with markers for removed standard-library audio modules.
+- Test a clean pip install and pip check; run real melody/chord/silence transcription and compare notes, times, velocities, and pitch bends against the approved upstream baseline. Retest Python 3.11 as a compatibility regression.
+- Add CI matrix for 3.11/3.14, update setup and progress notes, save to GitHub, and return to the existing user-testing pause. No cloud/score phase work.

@@ -47,3 +47,7 @@ After short clips are useful, evaluate longer excerpts and eventually a typical 
 ## Milestone pause
 
 Local audio-to-MIDI playback is the intended stopping point. Next work should respond to these listening results. Cloud transcription and the first rendered score each have their own later testing pauses; neither is implemented now.
+
+
+## Python 3.14 repair regression (2026-10-17)
+The ONNX-only package and modern numerical stack were tested on CPython 3.14.8 and 3.11.17 against the original synthetic MIDI baseline. Melody, chords, and silence retained their note counts, pitches, timing, velocities, and pitch bends within the documented tight tolerances. Using the fresh locked pip installation, the first Python 3.14 melody run took 11.76s / 427.14 MiB peak worker RSS; subsequent fresh workers with a warm audio JIT cache took 1.29s / 318.53 MiB for chords and 1.30s / 317.37 MiB for silence. These are diagnostic results, not a representative-recording or cloud sizing claim. Historical measurements above used the old TensorFlow-importing environment. See `python314.md` for dependency and regression details. No new human listening assessment is claimed.

@@ -4,21 +4,26 @@ Local audio → MIDI experiment, with a TypeScript application/CLI and Python Ba
 
 ## Setup
 
-Validated on Linux x86-64 with Node.js 24 and Python 3.11. macOS should use the portable requirements file below; native Windows is not supported in this milestone (use WSL2). Allow a few GB for the Python environment: Basic Pitch pulls TensorFlow even though this adapter explicitly uses ONNX. No GPU or model download service is required; the model ships in the package.
+Use **standard CPython 3.14** (not the free-threaded build) and Node.js 24. Linux x86-64 is validated on Python 3.14 and 3.11. macOS support is not yet validated; the ONNX 1.31 Python 3.14 wheel requires Apple Silicon and macOS 14+. Native Windows is not supported in this milestone (use WSL2). The model is included locally; no GPU, TensorFlow, or runtime model-download service is needed.
 
 ```sh
 git clone https://github.com/pisomojadogrande/polyphon.git
 cd polyphon
 npm ci
-python3.11 -m venv .venv
+python3.14 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -r python/requirements-lock.txt
+.venv/bin/python -m pip check
 npm run check
 npm run test:python
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000** on the same machine. On macOS, install with `-r python/requirements.txt` instead of the Linux dependency snapshot; keep Python 3.11, NumPy 1.26.4, and setuptools 80.9.0. If you use `uv`, `uv venv --python 3.11 .venv` and `uv pip install --python .venv/bin/python -r python/requirements-lock.txt` are equivalent on Linux. Optional compressed-format support may require FFmpeg on your PATH; WAV/FLAC is the most reliable starting point.
+Run installation commands from the **repository root**: the requirements include a local ONNX-only adaptation of Spotify Basic Pitch 0.4.0, with attribution and its unchanged model. The upstream `basic-pitch` distribution still requires obsolete TensorFlow versions and cannot install on Python 3.14. Do not install `basic-pitch[onnx]` separately. [Dependency rationale, provenance, and validation](docs/python314.md).
+
+If you tried the previous setup, first stop Polyphon, deactivate any active virtual environment, and move the old `.venv` out of the way (for example `mv .venv .venv-old`). Then create the new environment and run the commands above. The `.venv-old` backup is ignored by Git; delete that disposable environment after the new setup works. Your recordings and `.polyphon` results are separate from `.venv`. Avoid mixing old TensorFlow packages into the new environment.
+
+Open **http://127.0.0.1:3000** on the same machine. `python/requirements-lock.txt` pins transitive dependencies with Python-version markers and is the recommended setup. `python/requirements.txt` installs the local package's pinned direct runtime dependencies with freshly resolved transitives. With `uv`, `uv venv --python 3.14 .venv` and `uv pip install --python .venv/bin/python -r python/requirements-lock.txt` are equivalent. Optional compressed-format support may require FFmpeg on your PATH; WAV/FLAC is the most reliable starting point.
 
 `npm run dev` builds the browser bundle and starts the server. After source edits, restart it with that command. `npm start` alone expects a previous build. Override the port with `PORT=3001 npm run dev`, or the worker interpreter with `POLYPHON_PYTHON=/absolute/path/to/python npm run dev`.
 
@@ -83,8 +88,8 @@ Run `npm run check` for TypeScript checks, browser build, and Node tests; `npm r
 
 ## Troubleshooting
 
-- **Cannot start Python worker:** create `.venv` with Python 3.11, install requirements, or set `POLYPHON_PYTHON` to the right interpreter.
-- **NumPy/TensorFlow import errors or missing pkg_resources:** recreate the environment using the pinned requirements. Python 3.12/3.13 and latest unpinned NumPy/setuptools are not this project's tested configuration.
+- **Cannot start Python worker:** create `.venv` with Python 3.14, install requirements, or set `POLYPHON_PYTHON` to the right interpreter.
+- **TensorFlow resolution errors or missing pkg_resources:** pull the latest repository and recreate `.venv` with Python 3.14 using the current lock file. The ONNX-only package excludes TensorFlow and uses Resampy 0.4.3, which no longer imports `pkg_resources`. Do not reuse the old NumPy 1.26/TensorFlow requirements.
 - **Cannot decode a clip:** convert it to WAV/FLAC with your audio editor or FFmpeg. File extension alone cannot establish that an upload contains valid audio.
 - **No notes:** inspect source volume/content, try a clearer recording, and use the report warning. A valid empty MIDI is a successful result for silence.
 - **First run feels slow:** imports and initial audio-processing JIT compilation can dominate short clips. Compare cold and subsequent runs separately; every clip starts a fresh worker process.

@@ -1,6 +1,17 @@
 # Current progress / clean-context handoff
 
-Updated: 2026-10-11. **Milestone 1 is ready for user testing. Stop here.**
+Updated: 2026-10-17. **Python 3.14 installation repaired; milestone 1 remains paused for user testing.**
+
+## Latest repair: Python 3.14
+- User reported TensorFlow resolution failures with Python 3.14. Upstream Basic Pitch 0.4.0 requires TensorFlow <2.15.1 even when selecting ONNX; there are no compatible TensorFlow wheels for that requirement.
+- Replaced upstream packaging with the attributed local `polyphon-basic-pitch-onnx` distribution, retaining the same model, constants, and note extraction. Its separate module is `polyphon_basic_pitch`; no runtime TensorFlow/CoreML/TFLite imports. License, provenance hashes, and modification notices are in `python/vendor/basic-pitch-onnx`.
+- Runtime pins include NumPy 2.4.6, ONNX Runtime 1.31.0, Numba 0.68.0, SciPy 1.17.1, and Resampy 0.4.3 (the old pkg_resources dependency came from Resampy 0.4.2, not Basic Pitch itself).
+- Lock regenerated with version markers for removed Python audio standard-library modules. Ordinary pip installation into a fresh CPython 3.14.8 environment and `pip check` pass without TensorFlow.
+- All 16 Node tests and 5 Python tests pass. Actual melody/chord/silence transcriptions on 3.14 and 3.11 match the approved pre-migration baseline, including note timings, velocities, 266 melody pitch bends, and supplied tempo/meter. See `python/check_regression.py` and `docs/python314.md`.
+- README now uses Python 3.14 and documents recreating the virtual environment; both direct and locked installs require running from the repository root because the ONNX package is local.
+- CI now checks actual transcription and baseline parity on Python 3.11 and 3.14. Remote validation of this repair follows publication.
+- Scope remains the local milestone only; no AWS/score work. Return to short real-clip listening tests after setup succeeds.
+
 
 ## What is implemented
 - TypeScript shared contracts and transcription process adapter; CLI and serial batch evaluation runner.
@@ -10,7 +21,7 @@ Updated: 2026-10-11. **Milestone 1 is ready for user testing. Stop here.**
 - Meaningful tests, CI checks plus real Basic Pitch smoke test, setup/evaluation instructions, agreed requirements, original source document, and saved phase plan.
 - No AWS deployment, credentials, authentication, billing, voice separation, score rendering, or cloud architecture selected.
 
-## Verified
+## Original milestone verification (2026-10-11)
 - `npm run check`: type-check and browser bundle build; **16 Node tests passed** (guidance/manifest validation, playback seek timing, worker protocol/failure/missing interpreter/timeout/cancellation, queue serialization, audio deletion, restoration, cap/TTL, shutdown, process lock, HTTP guards/upload/result downloads/deletion).
 - `npm run test:python`: **3 Python tests passed** (window counting, duration limits, peak memory).
 - Actual Basic Pitch: 5s melody → 4 expected notes; 5s chords → 12 expected events plus one extra note; 2s silence → valid empty MIDI with warning. Details and measurements in `docs/evaluation.md`.
@@ -20,10 +31,10 @@ Updated: 2026-10-11. **Milestone 1 is ready for user testing. Stop here.**
 - Linux x86-64, Node 24.19.0, Python 3.11.17; portable macOS setup is documented but unverified. Windows support uses WSL2.
 - GitHub Actions passed both jobs (TypeScript/Python checks and actual Basic Pitch smoke) on code commit `af373980f9f4b4cec99e26af1002f2051bc5b856`: https://github.com/pisomojadogrande/polyphon/actions/runs/38185318835. The final handoff commit changes documentation only and skips redundant CI.
 
-## Important dependency findings
+## Historical dependency findings (superseded by the repair above)
 - Basic Pitch pulls TensorFlow on Python 3.11 even though this worker uses ONNX. Imports contribute substantially to ~756–862 MiB measured RSS.
 - NumPy 2.x is incompatible with the upstream TensorFlow version; pinned 1.26.4.
-- Basic Pitch imports `pkg_resources`; setuptools 81+ removes it. Pinned setuptools 80.9.0.
+- The previous stack needed setuptools 80.9.0 for `pkg_resources`; investigation identified the import in Resampy 0.4.2. Current Resampy 0.4.3 removes that requirement.
 - `python/requirements-lock.txt` is the validated Linux/3.11 dependency snapshot. `python/requirements.txt` is the portable direct-dependency specification. The worker deliberately targets the installed 0.4.0 API (30-frame overlap), not unreleased upstream main.
 - Initial decoding includes JIT compilation and can be much slower than subsequent cached runs.
 
