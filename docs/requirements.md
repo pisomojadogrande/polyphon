@@ -21,6 +21,8 @@ Authority: the user's agreed onboarding requirements and current request (2026-1
 ## Runtime amendment (2026-10-17)
 - User has Python 3.14 and requests compatible dependencies. Support standard CPython 3.14 for the local transcription milestone; preserve its existing musical behavior and testing pause.
 
+- Local TypeScript startup uses an explicit runner and supports Node 22/24 without native TypeScript stripping (startup repair, 2026-10-17).
+
 ## Future cloud constraints (not authorized in milestone 1)
 - AWS, initial target roughly $5/month and minimal idle cost. Separate test and production accounts, region `us-east-1`.
 - Prefer CDK, DynamoDB, and serverless services. Decide processing architecture after local measurements; the budget is a target, not a demonstrated guarantee.

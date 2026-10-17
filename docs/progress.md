@@ -1,8 +1,14 @@
 # Current progress / clean-context handoff
 
-Updated: 2026-10-17. **Python 3.14 installation repaired; milestone 1 remains paused for user testing.**
+Updated: 2026-10-17. **Python 3.14 installation and TypeScript startup repaired; milestone 1 remains paused for user testing.**
 
-## Latest repair: Python 3.14
+## Latest repair: TypeScript startup
+- User reported `ERR_UNKNOWN_FILE_EXTENSION` for `src/server.ts` during `npm run dev`; the original scripts assumed Node 24's native TypeScript stripping.
+- Added a pinned local `tsx` runner for server/CLI/evaluation and test loading. Node support is now 22+, with CI TypeScript checks on 22 and 24. No Python or transcription behavior changed.
+- Verified locally: all 16 Node tests/build/type checks pass on Node 24.19.0 and Node 22.23.3. On Node 22 with native TypeScript stripping disabled, `npm run dev` served the HTML and job API successfully and the CLI transcribed the melody fixture to 4 notes. Pinned runner is tsx 4.23.15.
+- CI tests Node 22/24 with native stripping disabled; updated scripts and docs are prepared for publication. Preserve the milestone 1 listening-test pause.
+
+## Python 3.14 repair
 - User reported TensorFlow resolution failures with Python 3.14. Upstream Basic Pitch 0.4.0 requires TensorFlow <2.15.1 even when selecting ONNX; there are no compatible TensorFlow wheels for that requirement.
 - Replaced upstream packaging with the attributed local `polyphon-basic-pitch-onnx` distribution, retaining the same model, constants, and note extraction. Its separate module is `polyphon_basic_pitch`; no runtime TensorFlow/CoreML/TFLite imports. License, provenance hashes, and modification notices are in `python/vendor/basic-pitch-onnx`.
 - Runtime pins include NumPy 2.4.6, ONNX Runtime 1.31.0, Numba 0.68.0, SciPy 1.17.1, and Resampy 0.4.3 (the old pkg_resources dependency came from Resampy 0.4.2, not Basic Pitch itself).

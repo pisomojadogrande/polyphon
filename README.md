@@ -4,7 +4,7 @@ Local audio → MIDI experiment, with a TypeScript application/CLI and Python Ba
 
 ## Setup
 
-Use **standard CPython 3.14** (not the free-threaded build) and Node.js 24. Linux x86-64 is validated on Python 3.14 and 3.11. macOS support is not yet validated; the ONNX 1.31 Python 3.14 wheel requires Apple Silicon and macOS 14+. Native Windows is not supported in this milestone (use WSL2). The model is included locally; no GPU, TensorFlow, or runtime model-download service is needed.
+Use **standard CPython 3.14** (not the free-threaded build) and Node.js 22 or 24. Linux x86-64 is validated on Python 3.14 and 3.11. macOS support is not yet validated; the ONNX 1.31 Python 3.14 wheel requires Apple Silicon and macOS 14+. Native Windows is not supported in this milestone (use WSL2). The model is included locally; no GPU, TensorFlow, or runtime model-download service is needed.
 
 ```sh
 git clone https://github.com/pisomojadogrande/polyphon.git
@@ -25,7 +25,7 @@ If you tried the previous setup, first stop Polyphon, deactivate any active virt
 
 Open **http://127.0.0.1:3000** on the same machine. `python/requirements-lock.txt` pins transitive dependencies with Python-version markers and is the recommended setup. `python/requirements.txt` installs the local package's pinned direct runtime dependencies with freshly resolved transitives. With `uv`, `uv venv --python 3.14 .venv` and `uv pip install --python .venv/bin/python -r python/requirements-lock.txt` are equivalent. Optional compressed-format support may require FFmpeg on your PATH; WAV/FLAC is the most reliable starting point.
 
-`npm run dev` builds the browser bundle and starts the server. After source edits, restart it with that command. `npm start` alone expects a previous build. Override the port with `PORT=3001 npm run dev`, or the worker interpreter with `POLYPHON_PYTHON=/absolute/path/to/python npm run dev`.
+`npm run dev` builds the browser bundle and starts the server through the locally installed `tsx` runner. Server, CLI, evaluation, and tests do not rely on Node’s native TypeScript stripping. Run `npm ci` after pulling dependency changes. After source edits, restart it with that command. `npm start` alone expects a previous build. Override the port with `PORT=3001 npm run dev`, or the worker interpreter with `POLYPHON_PYTHON=/absolute/path/to/python npm run dev`.
 
 ## First listening test
 
@@ -87,6 +87,8 @@ Paths are relative to your current working directory. Each batch creates its own
 Run `npm run check` for TypeScript checks, browser build, and Node tests; `npm run test:python` for Python helper tests. CI also generates the melody fixture and validates a real Basic Pitch transcription. No cloud architecture is selected yet; milestone 1 ends with user listening feedback.
 
 ## Troubleshooting
+
+- **Unknown file extension ".ts":** pull the latest changes and run `npm ci`, then `npm run dev`. All TypeScript commands now use `tsx`. Use Node 22 or newer (`node --version`); direct `node src/server.ts` is not the supported launch command.
 
 - **Cannot start Python worker:** create `.venv` with Python 3.14, install requirements, or set `POLYPHON_PYTHON` to the right interpreter.
 - **TensorFlow resolution errors or missing pkg_resources:** pull the latest repository and recreate `.venv` with Python 3.14 using the current lock file. The ONNX-only package excludes TensorFlow and uses Resampy 0.4.3, which no longer imports `pkg_resources`. Do not reuse the old NumPy 1.26/TensorFlow requirements.

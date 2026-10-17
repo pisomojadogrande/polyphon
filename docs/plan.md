@@ -46,3 +46,7 @@ Implementation and local verification complete on 2026-10-11; see `progress.md`.
 - Pin CPython 3.14-compatible runtime versions and regenerate a transitive lock with markers for removed standard-library audio modules.
 - Test a clean pip install and pip check; run real melody/chord/silence transcription and compare notes, times, velocities, and pitch bends against the approved upstream baseline. Retest Python 3.11 as a compatibility regression.
 - Add CI matrix for 3.11/3.14, update setup and progress notes, save to GitHub, and return to the existing user-testing pause. No cloud/score phase work.
+
+
+## Node startup compatibility fix (2026-10-17)
+Use a pinned `tsx` dependency for every TypeScript entry point, support Node 22/24, and test startup with native TypeScript stripping disabled. Verify CLI transcription and existing checks, update docs/progress, save to GitHub, and return to user testing.
