@@ -13,7 +13,7 @@ Updated: 2026-10-17. **Raw grand-staff notation with synchronized playback is im
 - No key selection, user bar starts, voice inference, note completion, score export, AWS, or new transcription model. These remain deferred.
 - Verified locally: 24 Node tests/build/type checks on Node 24 and Node 22 with native TypeScript stripping disabled; 4 Playwright tests in local Chromium. Manual actual no-guidance WAV upload → Basic Pitch → notation/cursor → result deletion passed. Desktop/mobile inspected. Browser tests verify geometry/control mechanics, not perceived audio quality; one upload-result regression mocks processing.
 - Added browser CI job, local bundled fonts (no CDN) and scoped font CSP. Test servers use isolated per-run data directories and graceful teardown. `POLYPHON_DATA_DIR` supports data isolation; default local storage remains `.polyphon`.
-- Setup/testing and limitations: README and `docs/notation-testing.md`. No Python dependency change. Remote CI/publication follows this local validation.
+- Setup/testing and limitations: README and `docs/notation-testing.md`. No Python dependency change. Pushed functional milestone `ccabcee68172a47a438bab939e9b6ed3412fd789` to main; all five CI jobs passed (Node 22/24, browser notation, Python 3.11/3.14 transcription/regression): https://github.com/pisomojadogrande/polyphon/actions/runs/39078192018. The final documentation-only handoff commit skips redundant CI.
 - **Next action belongs to the user:** inspect their short MIDI clips and report readability, accidentals, rhythm/tie clutter, and cursor behavior. Stop here before key/measure/cloud refinements.
 
 ## Latest repair: TypeScript startup
