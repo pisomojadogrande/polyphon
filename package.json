@@ -15,12 +15,15 @@
     "test:python": ".venv/bin/python -m unittest discover -s python -p 'test_*.py'",
     "fixture": "python3 python/make_fixture.py",
     "check": "npm run build && npm test",
-    "evaluate": "tsx src/evaluate.ts"
+    "evaluate": "tsx src/evaluate.ts",
+    "test:browser": "playwright test"
   },
   "dependencies": {
-    "@tonejs/midi": "2.0.28"
+    "@tonejs/midi": "2.0.28",
+    "vexflow": "5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/node": "24.10.1",
     "esbuild": "0.25.12",
     "tsx": "4.23.15",

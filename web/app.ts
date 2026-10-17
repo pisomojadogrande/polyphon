@@ -1,24 +1,28 @@
+import { ScoreView } from './score.ts';
 import { MidiPlayer } from './player.ts';
 import { MAX_BYTES } from '../src/contracts.ts';
 import type { Job } from '../src/jobs.ts';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const format = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const play = $<HTMLButtonElement>('play'), stop = $<HTMLButtonElement>('stop'), position = $<HTMLInputElement>('position');
+const score = new ScoreView($<HTMLDivElement>('score'), $('score-status'), $<HTMLButtonElement>('score-previous'), $<HTMLButtonElement>('score-next'));
 const player = new MidiPlayer((seconds, playing) => {
   position.value = String(seconds); $('clock').textContent = `${format(seconds)} / ${format(player.duration)}`;
   play.textContent = playing ? 'Pause' : 'Play';
+  score.update(seconds, playing);
 });
 async function loadMidi(buffer: ArrayBuffer, name: string) {
-  player.load(buffer); position.max = String(player.duration);
+  const notes = player.load(buffer); position.max = String(player.duration);
   play.disabled = stop.disabled = position.disabled = player.duration === 0;
   $('playing-name').textContent = name + (player.duration === 0 ? ' · No notes detected.' : '');
+  try { await score.load(notes); } catch (error) { score.clear(); $('score').textContent = 'Notation could not be rendered. MIDI playback is still available.'; $('score-status').textContent = String(error); }
 }
 play.onclick = async () => {
   try { if (player.playing) player.pause(); else { $<HTMLAudioElement>('original').pause(); await player.play(Number(position.value), Number($<HTMLSelectElement>('speed').value)); } }
   catch (err) { $('playing-name').textContent = String(err); }
 };
-stop.onclick = () => player.stop();
-position.oninput = () => { const target = position.value; player.pause(); position.value = target; $('clock').textContent = `${format(Number(target))} / ${format(player.duration)}`; };
+stop.onclick = () => { score.follow(); player.stop(); };
+position.oninput = () => { score.follow(); player.seek(Number(position.value)); };
 $<HTMLSelectElement>('speed').onchange = () => player.pause();
 $<HTMLInputElement>('midi').onchange = async event => {
   const file = (event.target as HTMLInputElement).files?.[0];
@@ -36,7 +40,7 @@ $<HTMLFormElement>('upload').onsubmit = async event => {
   const status = $('upload-status');
   if (file.size > MAX_BYTES || file.size === 0) { status.textContent = 'Choose a non-empty file under 64 MiB.'; return; }
   const submit = $<HTMLButtonElement>('submit'); submit.disabled = true;
-  const params = new URLSearchParams({ name: file.name, guidance: JSON.stringify({ tempo: Number($<HTMLInputElement>('tempo').value), timeSignature: $<HTMLSelectElement>('time').value.split('/').map(Number), key: $<HTMLInputElement>('key').value, voices: $<HTMLInputElement>('voices').value }) });
+  const params = new URLSearchParams({ name: file.name, guidance: JSON.stringify({ tempo: $<HTMLInputElement>('tempo').value ? Number($<HTMLInputElement>('tempo').value) : undefined, timeSignature: $<HTMLSelectElement>('time').value.split('/').map(Number), key: $<HTMLInputElement>('key').value, voices: $<HTMLInputElement>('voices').value }) });
   const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/jobs?' + params); xhr.setRequestHeader('Content-Type', 'application/octet-stream');
   xhr.upload.onprogress = e => { status.textContent = e.lengthComputable ? `Uploading ${Math.round(e.loaded / e.total * 100)}%` : 'Uploading audio…'; };
   xhr.onload = () => { submit.disabled = false; try { const response = JSON.parse(xhr.responseText); status.textContent = xhr.status === 202 ? 'Uploaded. Processing stages appear below.' : response.error; } catch { status.textContent = 'Upload failed.'; } void refresh(); };
@@ -59,7 +63,7 @@ function render(job: Job) {
   }
   const actions = node('div'); actions.className = 'actions';
   if (job.progress.stage === 'complete') {
-    const listen = node('button', 'Load MIDI for playback') as HTMLButtonElement;
+    const listen = node('button', 'View notation & MIDI playback') as HTMLButtonElement;
     listen.onclick = async () => { try { const res = await fetch(`/api/jobs/${job.id}/midi`); if (!res.ok) throw new Error('Result expired'); await loadMidi(await res.arrayBuffer(), job.name); $('playing-name').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (err) { $('playing-name').textContent = String(err); } }; actions.append(listen);
     for (const artifact of ['midi', 'report']) { const link = node('a', `Download ${artifact.toUpperCase()}`) as HTMLAnchorElement; link.href = `/api/jobs/${job.id}/${artifact}`; actions.append(link); }
   }

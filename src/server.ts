@@ -21,7 +21,7 @@ export async function createApp(directory = resolve(root, '.polyphon'), runner =
     const send = (code: number, value: unknown) => { if (!res.destroyed && !res.headersSent) { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(value)); } };
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
     try {
       // Loopback binding plus Host/Origin validation blocks DNS rebinding and cross-site writes.
       const host = req.headers.host ?? '';
@@ -77,7 +77,7 @@ export async function createApp(directory = resolve(root, '.polyphon'), runner =
   return { server, jobs };
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const { server, jobs } = await createApp();
+  const { server, jobs } = await createApp(resolve(process.env.POLYPHON_DATA_DIR ?? join(root, '.polyphon')));
   const port = Number(process.env.PORT ?? 3000);
   server.listen(port, '127.0.0.1', () => console.log(`Polyphon local experiment: http://127.0.0.1:${port}`));
   let closing = false;

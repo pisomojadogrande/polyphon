@@ -1,6 +1,6 @@
 # Polyphon
 
-Local audio → MIDI experiment, with a TypeScript application/CLI and Python Basic Pitch worker. Upload a short clip, listen to the resulting MIDI, compare it with the original, and record feedback before choosing cloud infrastructure or score rendering. **No AWS deployment is included.**
+Local audio → MIDI → raw staff notation experiment, with a TypeScript application/CLI and Python Basic Pitch worker. Upload a short clip, inspect the grand staff, listen with a moving playback cursor, and record feedback before refining the score. **No AWS deployment is included.**
 
 ## Setup
 
@@ -27,14 +27,15 @@ Open **http://127.0.0.1:3000** on the same machine. `python/requirements-lock.tx
 
 `npm run dev` builds the browser bundle and starts the server through the locally installed `tsx` runner. Server, CLI, evaluation, and tests do not rely on Node’s native TypeScript stripping. Run `npm ci` after pulling dependency changes. After source edits, restart it with that command. `npm start` alone expects a previous build. Override the port with `PORT=3001 npm run dev`, or the worker interpreter with `POLYPHON_PYTHON=/absolute/path/to/python npm run dev`.
 
-## First listening test
+## Try the raw notation milestone
 
 1. Choose a **10–30 second** WAV/FLAC clip; start with one clear voice, then try an ensemble and a voice/instrument mix.
-2. Enter a known tempo/meter if available. Key and voice descriptions are optional evaluation notes; they do not change Basic Pitch predictions.
+2. Leave tempo/key blank if unknown. Any known tempo/meter/voice guidance is optional; no musical guesses are required.
 3. Click **Transcribe audio**. Upload has measured progress; inference reports completed model windows. Loading, decoding, note extraction, and writing are named stages. First-run compilation can make decoding slower.
-4. When ready, click **Load MIDI for playback**, then **Play**. Use pause, seek, playback speed, and stop. Compare with the original audio preview, one at a time.
-5. Download MIDI and JSON report. Rate whether melody/harmony are recognizable and note missing, extra, or badly timed notes using [the evaluation guide](docs/evaluation.md).
-6. Try two additional short clips. **Stop here and share results** before the cloud or score milestones.
+4. Click **View notation & MIDI playback**, or use **Open local MIDI** to inspect an existing `.mid` without retranscribing. A combined treble/bass grand staff appears, with explicit chromatic accidentals and provisional measures.
+5. Click **Play**: the vertical cursor follows the original MIDI timing. Pause/resume, stop/reset, seek, and playback speed work with the score. The view follows across measure pages; browse previous/next measures while paused. Compare with the original audio preview one at a time.
+6. Download MIDI and JSON report. Rate whether melody/harmony are recognizable and note missing, extra, or badly timed notes using [the evaluation guide](docs/evaluation.md).
+7. **Stop here and share results**: can you recognize the harmony, see enough to identify the key, and follow the cursor? Include passages where rhythm, accidentals, ties, or chord layout make inspection difficult. [Notation testing details](docs/notation-testing.md). Key-signature/measure-start input and cloud work are deferred.
 
 No private recordings are included. To test without one:
 
@@ -45,7 +46,9 @@ npm run cli -- work/fixtures/melody.wav --out work/result --tempo 90 --time 3/4
 npm run dev
 ```
 
-Use **Open local MIDI** in the web UI to load `work/result/transcription.mid`. Synthetic fixtures establish mechanics, not singing quality.
+Use **Open local MIDI** in the web UI to load `work/result/transcription.mid` for notation and playback. Synthetic fixtures establish mechanics, not singing quality.
+
+The first rendering uses a fixed **120 BPM, 4/4, sixteenth-note display grid**. Those are provisional engraving choices, not inferred song tempo/bar lines. Playback preserves source MIDI seconds; display quantization does not rewrite MIDI. No key is assumed; initial spellings use C♯, E♭, F♯, A♭, B♭ plus natural cancellations. Pitches at/above middle C go to treble, lower pitches to bass—this does not identify singers. Dense notation may require scrolling inside the score pane.
 
 ## CLI and batch evaluation
 
@@ -71,7 +74,7 @@ Paths are relative to your current working directory. Each batch creates its own
 - Local web uploads live in `.polyphon/uploads` and are deleted after success, failure, or cancellation. Startup clears interrupted uploads. CLI source files are never deleted.
 - Web results live in `.polyphon/outputs`, survive server restarts, expire after 7 days, and are capped at 200 MiB (oldest results removed). Cleanup runs at startup, after jobs, and hourly while running. Manual Delete/Cancel removes a result and its pending source. Download anything you want to retain. Closing the browser does not cancel processing. Stopping the server with Control-C cancels pending workers and removes their uploads; completed results remain. A lock prevents simultaneous servers from sharing a data folder.
 - Authentication is deferred. Bind only to localhost; do not expose this server on a public interface. Host/Origin checks protect local operations from cross-site requests.
-- Basic Pitch does not separate singers, identify parts, infer a reliable musical grid, or render sheet music. Supplied tempo/meter set MIDI metadata without quantization. Synth playback ignores instrument programs and approximates pitch bends as fixed notes; a DAW can play the exported MIDI more faithfully.
+- Basic Pitch does not separate singers, identify parts, or infer a reliable musical grid. Polyphon now renders a deliberately rough score from its MIDI, including any transcription errors. Supplied tempo/meter set MIDI metadata without quantization. Synth playback ignores instrument programs and approximates pitch bends as fixed notes; a DAW can play the exported MIDI more faithfully.
 
 ## Project map and continuation
 
@@ -79,12 +82,15 @@ Paths are relative to your current working directory. Each batch creates its own
 - `src/transcription.ts`: reusable process adapter; `src/cli.ts` and `src/evaluate.ts`: command-line entry points.
 - `python/transcribe.py`: pinned Basic Pitch ONNX inference and real window progress.
 - `src/jobs.ts` / `src/server.ts`: local queue, lifecycle/storage controls, HTTP API.
+- `src/notation.ts`: shared display-only rhythm/pitch/accidental/tie conversion and source-time anchors.
+- `web/score.ts`: VexFlow SVG grand staff, bundled local fonts, measure navigation, and playback cursor.
 - `web/`: browser UI, MIDI parser, and Web Audio playback.
 - `tests/` / `python/test_transcribe.py`: validation, process, playback timing, HTTP, and lifecycle tests.
 - `.github/workflows/check.yml`: checks and actual Basic Pitch smoke test, **no deployment**.
+- [Raw notation phase plan](docs/raw-notation-plan.md), [notation testing](docs/notation-testing.md).
 - [Agreed requirements](docs/requirements.md), [phase plan](docs/plan.md), [current progress and handoff](docs/progress.md), [original idea](docs/original-idea.md).
 
-Run `npm run check` for TypeScript checks, browser build, and Node tests; `npm run test:python` for Python helper tests. CI also generates the melody fixture and validates a real Basic Pitch transcription. No cloud architecture is selected yet; milestone 1 ends with user listening feedback.
+Run `npm run check` for TypeScript checks, browser build, and Node tests; `npm run test:python` for Python helper tests. CI also generates the melody fixture and validates a real Basic Pitch transcription. The raw notation milestone ends with user feedback; cloud architecture remains deferred. For engraving/browser regression tests, run `npx playwright install chromium` then `npm run test:browser` (Linux may also need `npx playwright install --with-deps chromium`). To use an existing Chromium, set `POLYPHON_CHROMIUM=/path/to/chromium`. The browser tests start an isolated localhost server and use data under ignored `work/`.
 
 ## Troubleshooting
 

@@ -1,14 +1,20 @@
 # Current progress / clean-context handoff
 
-Updated: 2026-10-17. **Milestone 1 tested by the user; next phase is raw staff notation on localhost. Presentation questions pending; implementation has not started.**
+Updated: 2026-10-17. **Raw grand-staff notation with synchronized playback is implemented and ready for user testing on localhost. Stop at this milestone.**
 
 ## Latest user feedback and next phase
 - User reports imperfect MIDI transcription that captures many, but not all, harmonies. They want to explore the result rather than assume a full accurate score is achievable.
 - Users usually cannot supply BPM/key up front; they can identify key and measure starts after seeing staff notation. Record this as product guidance, not a prerequisite to transcription.
 - User requests raw MIDI on musical staves with explicit accidentals, play/pause/stop, and a moving vertical playback marker, still on localhost.
 - This changes the sequence: first local score rendering now; AWS/cloud stays deferred. Later key-signature input and measure-start annotations follow the first raw-score review. No AI note completion requested.
-- Saved detailed plan: `docs/raw-notation-plan.md`. Questions sent: combined treble/bass grand staff versus individual voice staves, and approximate readable rhythms versus closer timing notation. Recommendations are combined grand staff/readable approximation with original MIDI timing for playback. Answers are pending; do not treat recommendations as confirmed decisions.
-- This turn updates planning documents only. The raw notation renderer is not implemented. Next step: incorporate answers, implement the bounded rendering/playback milestone, validate against polyphonic/accidental/rest examples, then stop for user review.
+- User accepted the combined grand staff. They could not tell which rhythm option was simpler, so we chose a fixed display grid, explained the choice, and retained original MIDI timing for playback. Updated detailed plan: `docs/raw-notation-plan.md`.
+- Implemented shared display conversion (`src/notation.ts`), VexFlow 5 SVG grand staff (`web/score.ts`), and moving vertical cursor from the existing player's AudioContext clock. Added pause/resume/stop/seek/speed synchronization, measure-page following/navigation, rests, chord grouping, ties retaining original IDs, explicit chromatic signs/natural cancellations, and optional unknown-tempo upload.
+- Display convention: 120 BPM, 4/4, sixteenths; arbitrary provisional measures and fixed chromatic spellings, not tempo/key inference. Source MIDI remains unchanged; treble/bass is a pitch split at middle C, not voices.
+- No key selection, user bar starts, voice inference, note completion, score export, AWS, or new transcription model. These remain deferred.
+- Verified locally: 24 Node tests/build/type checks on Node 24 and Node 22 with native TypeScript stripping disabled; 4 Playwright tests in local Chromium. Manual actual no-guidance WAV upload → Basic Pitch → notation/cursor → result deletion passed. Desktop/mobile inspected. Browser tests verify geometry/control mechanics, not perceived audio quality; one upload-result regression mocks processing.
+- Added browser CI job, local bundled fonts (no CDN) and scoped font CSP. Test servers use isolated per-run data directories and graceful teardown. `POLYPHON_DATA_DIR` supports data isolation; default local storage remains `.polyphon`.
+- Setup/testing and limitations: README and `docs/notation-testing.md`. No Python dependency change. Remote CI/publication follows this local validation.
+- **Next action belongs to the user:** inspect their short MIDI clips and report readability, accidentals, rhythm/tie clutter, and cursor behavior. Stop here before key/measure/cloud refinements.
 
 ## Latest repair: TypeScript startup
 - User reported `ERR_UNKNOWN_FILE_EXTENSION` for `src/server.ts` during `npm run dev`; the original scripts assumed Node 24's native TypeScript stripping.
@@ -33,7 +39,7 @@ Updated: 2026-10-17. **Milestone 1 tested by the user; next phase is raw staff n
 - Localhost UI/server: bounded uploads, one-worker queue, original-audio preview, MIDI parse/play/pause/stop/seek/speed, CLI MIDI import, downloads, cancel/delete.
 - Temporary uploads deleted on completion/failure/cancellation/startup recovery. Outputs persist across restarts, with 7-day expiry and 200 MiB oldest-first cap. Shutdown cancels pending workers. A data-folder lock prevents concurrent servers from clearing each other's uploads.
 - Meaningful tests, CI checks plus real Basic Pitch smoke test, setup/evaluation instructions, agreed requirements, original source document, and saved phase plan.
-- No AWS deployment, credentials, authentication, billing, voice separation, score rendering, or cloud architecture selected.
+- No AWS deployment, credentials, authentication, billing, voice separation, or cloud architecture selected. Raw score rendering is now implemented; refined/exportable scores are deferred.
 
 ## Original milestone verification (2026-10-11)
 - `npm run check`: type-check and browser bundle build; **16 Node tests passed** (guidance/manifest validation, playback seek timing, worker protocol/failure/missing interpreter/timeout/cancellation, queue serialization, audio deletion, restoration, cap/TTL, shutdown, process lock, HTTP guards/upload/result downloads/deletion).

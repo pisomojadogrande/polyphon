@@ -26,6 +26,7 @@ export class MidiPlayer {
     this.notes = midi.tracks.flatMap(track => track.notes.map(n => ({ midi: n.midi, time: n.time, duration: n.duration, velocity: n.velocity }))).sort((a, b) => a.time - b.time);
     this.duration = midi.duration;
     this.onPosition(0, false);
+    return this.notes.map(note => ({ ...note }));
   }
   async play(offset = this.offset, speed = 1) {
     this.stop(false);
@@ -60,6 +61,10 @@ export class MidiPlayer {
     }
     this.onPosition(Math.min(position, this.duration), true);
     if (position >= this.duration) this.stop();
+  }
+  seek(seconds: number) {
+    this.stop(false); this.offset = Math.max(0, Math.min(this.duration, seconds));
+    this.onPosition(this.offset, false);
   }
   pause() {
     if (this.context && this.playing) this.offset += (this.context.currentTime - this.started) * this.speed;

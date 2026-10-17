@@ -1,6 +1,6 @@
 # Next phase: raw MIDI staff notation on localhost
 
-Requested 2026-10-17 after the user's first listening tests. Status: **planned, presentation questions pending; no renderer implemented yet**.
+Requested 2026-10-17 after the user's first listening tests. Status: **implemented and locally verified; ready for the first rendered-score testing pause**. The user accepted the combined grand staff and deferred rhythm complexity to us; use the simpler fixed-grid approximation with original-time playback.
 
 ## Feedback driving this experiment
 
@@ -26,7 +26,7 @@ This phase moves the first rendered score ahead of cloud transcription. Keep run
 2. Should notation prioritize readable approximate rhythms or preserve timing as closely as notation permits?
    - Recommendation: readable approximation, with original MIDI timing preserved for playback in either case.
 
-These are proposals, not accepted answers. Do not pick a notation library or finalize the rhythm/staff strategy before incorporating the user's response. No extra questions are needed about AWS, authentication, key inference, or missing-note AI for this bounded phase.
+User response: combined grand staff accepted. They could not judge which rhythm approach is simpler, so we chose the recommended fixed-grid approximation and explained that original playback timing is retained. No extra questions are needed about AWS, authentication, key inference, or missing-note AI for this bounded phase.
 
 ## Implementation outline after answers
 
@@ -44,3 +44,22 @@ Key-signature selection, user-defined bar starts and meter refinement, voice sep
 ## Acceptance
 
 A short transcribed or imported MIDI is visible on staves with accidentals, play/pause/stop work, and a moving vertical indicator follows source playback through the displayed notes. The user can evaluate how messy/useful it looks without knowing the key or BPM first. Source MIDI is unchanged; provisional display choices are clear. Pause for feedback with instructions and durable continuation notes.
+
+
+## Implementation decisions
+- VexFlow 5 SVG engraving, bundled Bravura/Academico fonts (no CDN/runtime font service).
+- Provisional 4/4 at 120 display BPM, sixteenth-note grid. This is a display convention, not tempo/meter inference; imported and transcribed MIDI retain source seconds for playback.
+- Middle C and above on treble, lower notes on bass. No voice identification.
+- Fixed chromatic spellings C, C-sharp, D, E-flat, E, F, F-sharp, G, A-flat, A, B-flat, B; show chromatic accidentals explicitly and natural cancellations where needed. No key signature is asserted.
+- Preserve source note IDs through quantization, chord grouping, duration splitting, and ties, with original-onset-to-display-tick anchors for cursor synchronization.
+- Render a bounded page of grand-staff measures at a time with automatic following during playback, plus previous/next navigation for paused inspection.
+
+
+## Completion and practical limits
+- Shared conversion is in `src/notation.ts`; VexFlow SVG/page/cursor logic is in `web/score.ts`. The existing MIDI player supplies source notes and AudioContext-clock position. Notation and playback do not use separate advancing timers.
+- Four provisional measures per page, scrolling in a bounded pane and automatic following. Dense engraving expands to its calculated minimum width; no remote fonts/services are used. Bravura/Academico load from bundled data, with a narrowly scoped font CSP allowance.
+- Quantization is display-only. Every staff measure is complete with rests; duration fragments/measure crossings get ties only when the same original note continues. Repeated same-pitch attacks are not tied. Unisons are deduplicated visually while retaining source identity.
+- Mixed natural/chromatic unisons explicitly show both signs. Chromatic signs repeat for inspection; natural cancellations are tracked per staff measure. No key/meter/tempo inference, voice separation, gap filling, or export has been added.
+- Short notes may display as a sixteenth; off-grid timing may create many ties/rests. Fixed pitch spelling may be musically awkward. Pitch bends remain the existing fixed-pitch playback approximation. Notation is limited to 10 minutes / 50,000 notes and an empty MIDI is handled explicitly.
+- Validation: 24 Node tests on Node 22/24, 4 Playwright browser tests, and a manual actual WAV→Basic Pitch→MIDI→notation/cursor flow. Browser tests cover font locality/CSP, controls/seek/speed, page changes/manual browsing, mobile containment, empty/oversized MIDI, and an unknown-guidance upload/result flow (mocked processing). See `notation-testing.md`.
+- **Stop for user testing now.** Next key-signature and measure-start refinements require the user's reaction to this raw score. Cloud remains deferred.

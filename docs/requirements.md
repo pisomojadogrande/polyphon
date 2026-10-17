@@ -40,11 +40,11 @@ Authority: the user's agreed onboarding requirements (2026-10-11), amended by te
 - Include play/pause/stop controls and a moving vertical indicator synchronized with the notes during playback.
 - Keep this experiment limited to viewing the current MIDI; do not invent missing notes or add AI gap filling. Further transcription/model improvements remain exploratory.
 - Key-signature input and user-specified measure starts are likely subsequent refinements, after reviewing the raw rendering. They are not part of this first notation pass.
-- Staff layout and readable rhythm approximation versus closer timing notation are being clarified. Recommended defaults are a combined grand staff and approximate notation, preserving original MIDI timing for playback.
+- User accepted the combined grand staff and deferred rhythm complexity to us. Chosen implementation: a simple fixed-grid display approximation, preserving original MIDI timing for playback.
 
 ## Work sequence and stopping rules (updated 2026-10-17)
 1. Local audio-to-MIDI foundation and playback: implemented and user-tested. Continue recording imperfections and findings.
-2. **Current next phase:** raw MIDI staff rendering with synchronized playback, on localhost. See `raw-notation-plan.md`. Resolve the two notation-presentation questions, then implement and pause for user testing when usable.
+2. **Current milestone, ready for review:** raw MIDI staff rendering with synchronized playback, on localhost. See `raw-notation-plan.md`. Presentation choices are settled and implementation is ready; pause for user testing.
 3. Refine the score from user feedback, likely key signature and measure-start guidance. Do not begin these automatically before the first rendering is reviewed.
 4. Cloud transcription remains deferred, with a separate testing pause when eventually usable. The original cloud-before-score ordering is superseded; no AWS deployment is currently authorized.
 5. Editing/export, voice refinement, and eventual billing remain future work shaped by results.
