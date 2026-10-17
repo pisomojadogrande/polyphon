@@ -6,7 +6,7 @@ Updated: 2026-10-17. **Python 3.14 installation and TypeScript startup repaired;
 - User reported `ERR_UNKNOWN_FILE_EXTENSION` for `src/server.ts` during `npm run dev`; the original scripts assumed Node 24's native TypeScript stripping.
 - Added a pinned local `tsx` runner for server/CLI/evaluation and test loading. Node support is now 22+, with CI TypeScript checks on 22 and 24. No Python or transcription behavior changed.
 - Verified locally: all 16 Node tests/build/type checks pass on Node 24.19.0 and Node 22.23.3. On Node 22 with native TypeScript stripping disabled, `npm run dev` served the HTML and job API successfully and the CLI transcribed the melody fixture to 4 notes. Pinned runner is tsx 4.23.15.
-- CI tests Node 22/24 with native stripping disabled; updated scripts and docs are prepared for publication. Preserve the milestone 1 listening-test pause.
+- Pushed to main. CI passed Node 22/24 checks with native stripping disabled and both Python transcription/regression jobs on commit `e101cb55a03c606b6e44f2e3b3098bcd735c8202`: https://github.com/pisomojadogrande/polyphon/actions/runs/39073382258. Final documentation-only handoff skips redundant CI. User should pull, run `npm ci`, and retry `npm run dev`; no Python environment changes are needed. Preserve the milestone 1 listening-test pause.
 
 ## Python 3.14 repair
 - User reported TensorFlow resolution failures with Python 3.14. Upstream Basic Pitch 0.4.0 requires TensorFlow <2.15.1 even when selecting ONNX; there are no compatible TensorFlow wheels for that requirement.
