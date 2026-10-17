@@ -9,7 +9,7 @@ Updated: 2026-10-17. **Python 3.14 installation repaired; milestone 1 remains pa
 - Lock regenerated with version markers for removed Python audio standard-library modules. Ordinary pip installation into a fresh CPython 3.14.8 environment and `pip check` pass without TensorFlow.
 - All 16 Node tests and 5 Python tests pass. Actual melody/chord/silence transcriptions on 3.14 and 3.11 match the approved pre-migration baseline, including note timings, velocities, 266 melody pitch bends, and supplied tempo/meter. See `python/check_regression.py` and `docs/python314.md`.
 - README now uses Python 3.14 and documents recreating the virtual environment; both direct and locked installs require running from the repository root because the ONNX package is local.
-- CI now checks actual transcription and baseline parity on Python 3.11 and 3.14. Remote validation of this repair follows publication.
+- CI passed all three jobs on repair commit `2af0475d5bd5058c62dfad4bed82656ac9c6f310`: TypeScript checks and actual transcription/baseline parity on Python 3.11 and 3.14. Run: https://github.com/pisomojadogrande/polyphon/actions/runs/39072407310. The final documentation-only handoff commit skips redundant CI.
 - Scope remains the local milestone only; no AWS/score work. Return to short real-clip listening tests after setup succeeds.
 
 
