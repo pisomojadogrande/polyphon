@@ -1,5 +1,9 @@
 # Phase plan
 
+## Current direction (2026-10-17)
+The user has completed initial MIDI playback testing and requests **raw staff notation on localhost next**, before cloud infrastructure. The current detailed plan is `raw-notation-plan.md`. Two presentation questions (staff layout and rhythm readability) are pending. Implement only this notation/playback experiment after clarification, then pause for user testing. Later key/measure guidance and cloud work remain deferred.
+
+
 ## Milestone 1: local audio → MIDI playback
 
 Deliverables:
@@ -31,13 +35,13 @@ Acceptance:
 4. Tests, actual experiment results, known limits, and user evaluation steps are documented.
 5. Save to repository and stop for user evaluation; do not proceed to cloud or scores.
 
-## Later milestones (provisional)
+## Later milestones (historical outline; ordering superseded above)
 - After user listens: collect isolated voice, a cappella ensemble, and voice/instrument clips. Compare guidance usefulness, note errors, elapsed time, and RSS. Evaluate whether source separation or another model is needed. Select cloud compute only after scaling measurements and budget calculations.
 - Cloud: propose AWS architecture with scale-to-zero, account separation, OIDC approvals, expiry/caps, authentication, and usage limits. User handles bootstrap/trust. Pause when cloud transcription is usable.
 - Score: prototype MIDI-to-score conversion and first renderer/export. Pause at first usable score; choose refinements from actual musical artifacts.
 
 ## Milestone 1 completion
-Implementation and local verification complete on 2026-10-11; see `progress.md`. A batch evaluation runner and data-folder lock/graceful shutdown were added to support repeatable measurements and safe local use. **Paused for user listening tests.** Future phase detail remains provisional.
+Implementation and local verification complete on 2026-10-11; see `progress.md`. A batch evaluation runner and data-folder lock/graceful shutdown were added to support repeatable measurements and safe local use. **Initial user listening feedback received 2026-10-17; next phase is local raw notation.** Future refinements remain provisional.
 
 
 ## Python 3.14 compatibility fix (2026-10-17)

@@ -1,6 +1,14 @@
 # Current progress / clean-context handoff
 
-Updated: 2026-10-17. **Python 3.14 installation and TypeScript startup repaired; milestone 1 remains paused for user testing.**
+Updated: 2026-10-17. **Milestone 1 tested by the user; next phase is raw staff notation on localhost. Presentation questions pending; implementation has not started.**
+
+## Latest user feedback and next phase
+- User reports imperfect MIDI transcription that captures many, but not all, harmonies. They want to explore the result rather than assume a full accurate score is achievable.
+- Users usually cannot supply BPM/key up front; they can identify key and measure starts after seeing staff notation. Record this as product guidance, not a prerequisite to transcription.
+- User requests raw MIDI on musical staves with explicit accidentals, play/pause/stop, and a moving vertical playback marker, still on localhost.
+- This changes the sequence: first local score rendering now; AWS/cloud stays deferred. Later key-signature input and measure-start annotations follow the first raw-score review. No AI note completion requested.
+- Saved detailed plan: `docs/raw-notation-plan.md`. Questions sent: combined treble/bass grand staff versus individual voice staves, and approximate readable rhythms versus closer timing notation. Recommendations are combined grand staff/readable approximation with original MIDI timing for playback. Answers are pending; do not treat recommendations as confirmed decisions.
+- This turn updates planning documents only. The raw notation renderer is not implemented. Next step: incorporate answers, implement the bounded rendering/playback milestone, validate against polyphonic/accidental/rest examples, then stop for user review.
 
 ## Latest repair: TypeScript startup
 - User reported `ERR_UNKNOWN_FILE_EXTENSION` for `src/server.ts` during `npm run dev`; the original scripts assumed Node 24's native TypeScript stripping.
@@ -50,8 +58,8 @@ Updated: 2026-10-17. **Python 3.14 installation and TypeScript startup repaired;
 - Generated clips, MIDI, reports, screenshots, Python environment, node_modules, build bundle, caches, and runtime state are ignored. No user recordings were supplied or committed.
 - Foundation pushed to `main` and remote commit verified on 2026-10-11. All requirements, plans, setup instructions, tests, and these continuation notes are in the repository.
 
-## User's next step
+## Previous milestone testing instructions (retained for reference)
 Follow README setup, open localhost, test 10–30 second excerpts of a solo voice, a cappella ensemble, and voice/instrument mix. Download MIDI/reports and supply usefulness ratings and error timestamps using `docs/evaluation.md`. Stop after those results; we should refine this experiment before moving to cloud.
 
-## Resume only after user feedback
-Read `AGENTS.md`, `docs/requirements.md`, `docs/plan.md`, and this file. Do not restart onboarding or implement later phases automatically. Preserve the milestone pauses. Actual singing quality and representative three-minute runtime/memory remain unknown. Use collected measurements to decide whether preprocessing/source separation/model changes are warranted and only then propose AWS compute within the $5/month target. User handles bootstrap/trust; future deployment must use OIDC, separate accounts and us-east-1, test from main and approval for production.
+## Continuation guidance (updated by the latest feedback above)
+Read `AGENTS.md`, `docs/requirements.md`, `docs/plan.md`, and this file. Do not restart onboarding or implement later phases beyond the requested raw notation milestone automatically. Preserve the milestone pauses. Actual singing quality and representative three-minute runtime/memory remain unknown. Use collected measurements to decide whether preprocessing/source separation/model changes are warranted and only then propose AWS compute within the $5/month target. User handles bootstrap/trust; future deployment must use OIDC, separate accounts and us-east-1, test from main and approval for production.

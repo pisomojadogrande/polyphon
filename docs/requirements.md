@@ -1,6 +1,6 @@
 # Polyphon — agreed requirements
 
-Authority: the user's agreed onboarding requirements and current request (2026-10-11). `original-idea.md` preserves the attached idea as background; its request to ask clarifying questions does not override the current instruction to build this milestone.
+Authority: the user's agreed onboarding requirements (2026-10-11), amended by testing feedback and the local notation request on 2026-10-17. `original-idea.md` preserves the attached idea as background; its request to ask clarifying questions does not override the current instruction to build this milestone.
 
 ## Product
 - Repository: `pisomojadogrande/polyphon`, renamed from `pisomojadogrande/polyphony`; initially empty.
@@ -33,11 +33,20 @@ Authority: the user's agreed onboarding requirements and current request (2026-1
 - User performs AWS bootstrap and trust configuration. Never request long-term credentials or direct AWS write access.
 - Original idea also proposes monthly activity limits/cost cutoff. Refine limits with measured usage before cloud implementation.
 
-## Work sequence and stopping rules
-1. **Current task:** project foundation and local audio-to-MIDI experiment, including MIDI playback. **Do not deploy to AWS.** Stop when the first transcription milestone is ready and give instructions for testing.
-2. Pause for user testing when audio-to-MIDI playback becomes usable; refine next phase from feedback.
-3. Later cloud transcription, with another user-testing pause when usable.
-4. First rendered score, with another user-testing pause when usable.
-5. Refine musical lines, rhythm/key guidance, editing/export, and eventual billing from results. These are not designed or implemented yet.
+## Local notation amendment (2026-10-17)
+- Initial audio-to-MIDI playback has been user-tested. Transcription catches many harmonies but misses others; musical completeness is not assumed.
+- Users generally do not know tempo or key before transcription. Do not require either up front. They can read music, identify key after viewing notes, and later mark measure starts.
+- Next milestone is raw MIDI musical notation on staves, running on localhost. Initially show chromatic notes with explicit accidentals and no assumed key signature.
+- Include play/pause/stop controls and a moving vertical indicator synchronized with the notes during playback.
+- Keep this experiment limited to viewing the current MIDI; do not invent missing notes or add AI gap filling. Further transcription/model improvements remain exploratory.
+- Key-signature input and user-specified measure starts are likely subsequent refinements, after reviewing the raw rendering. They are not part of this first notation pass.
+- Staff layout and readable rhythm approximation versus closer timing notation are being clarified. Recommended defaults are a combined grand staff and approximate notation, preserving original MIDI timing for playback.
+
+## Work sequence and stopping rules (updated 2026-10-17)
+1. Local audio-to-MIDI foundation and playback: implemented and user-tested. Continue recording imperfections and findings.
+2. **Current next phase:** raw MIDI staff rendering with synchronized playback, on localhost. See `raw-notation-plan.md`. Resolve the two notation-presentation questions, then implement and pause for user testing when usable.
+3. Refine the score from user feedback, likely key signature and measure-start guidance. Do not begin these automatically before the first rendering is reviewed.
+4. Cloud transcription remains deferred, with a separate testing pause when eventually usable. The original cloud-before-score ordering is superseded; no AWS deployment is currently authorized.
+5. Editing/export, voice refinement, and eventual billing remain future work shaped by results.
 
 Save these requirements and all detailed phase plans to the repository. Keep current progress and continuation notes up to date so work can resume with clean context.
