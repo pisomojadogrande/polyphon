@@ -1,6 +1,6 @@
 # Polyphon — agreed requirements
 
-Authority: the user's agreed onboarding requirements (2026-10-11), amended by testing feedback and the local notation request on 2026-10-17. `original-idea.md` preserves the attached idea as background; its request to ask clarifying questions does not override the current instruction to build this milestone.
+Authority: the user's agreed onboarding requirements (2026-10-11), amended by testing feedback and the local notation request on 2026-10-17 and the workflow request on 2026-10-18. `original-idea.md` preserves the attached idea as background; its request to ask clarifying questions does not override the current instruction to build this milestone.
 
 ## Product
 - Repository: `pisomojadogrande/polyphon`, renamed from `pisomojadogrande/polyphony`; initially empty.
@@ -42,11 +42,19 @@ Authority: the user's agreed onboarding requirements (2026-10-11), amended by te
 - Key-signature input and user-specified measure starts are likely subsequent refinements, after reviewing the raw rendering. They are not part of this first notation pass.
 - User accepted the combined grand staff and deferred rhythm complexity to us. Chosen implementation: a simple fixed-grid display approximation, preserving original MIDI timing for playback.
 
-## Work sequence and stopping rules (updated 2026-10-17)
-1. Local audio-to-MIDI foundation and playback: implemented and user-tested. Continue recording imperfections and findings.
-2. **Current milestone, ready for review:** raw MIDI staff rendering with synchronized playback, on localhost. See `raw-notation-plan.md`. Presentation choices are settled and implementation is ready; pause for user testing.
-3. Refine the score from user feedback, likely key signature and measure-start guidance. Do not begin these automatically before the first rendering is reviewed.
-4. Cloud transcription remains deferred, with a separate testing pause when eventually usable. The original cloud-before-score ordering is superseded; no AWS deployment is currently authorized.
-5. Editing/export, voice refinement, and eventual billing remain future work shaped by results.
+## Workflow amendment (2026-10-18)
+- User identified their test clip as F-sharp minor after seeing notation. Allow key selection after transcription and repeated re-rendering in that key.
+- Upload asks only for audio, an editable required clip name prefilled with an available recognizable `word1-word2`, and optional tonic dropdown plus major/minor radios. Reject duplicate saved names.
+- Navigate to progress on upload, then automatically to staff/playback results.
+- Results repeat tonic/mode controls and a **Re-transcribe** button. This is notation-only re-engraving of existing MIDI, preserving source pitches/timing rather than rerunning inference.
+- Expandable left rail lists named saved clips and opens their results. Persist names and key choices locally across refresh/restart.
+- Implement locally, then pause and invite user testing. See `workflow-plan.md`.
 
-Save these requirements and all detailed phase plans to the repository. Keep current progress and continuation notes up to date so work can resume with clean context.
+## Work sequence and stopping rules (updated 2026-10-18)
+1. Local audio-to-MIDI foundation and raw staff playback: implemented and user-tested.
+2. **Current milestone ready for review:** named-clip workflow and key-signature re-engraving. Pause for local testing; see `workflow-testing.md`.
+3. Measure-start guidance, note editing, and transcription improvements await feedback; do not begin automatically.
+4. Cloud transcription remains deferred with its own eventual testing pause. No AWS deployment is authorized.
+5. Editing/export, voice refinement, and billing remain future work.
+
+Save these requirements and all detailed phase plans to the repository. Keep progress and continuation notes current for clean-context resumption.

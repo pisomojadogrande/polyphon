@@ -54,3 +54,34 @@ test('completed result downloads MIDI/report and remains available after restart
   assert.equal(result.noteCount, 0); assert.deepEqual(await readdir(join(dir, 'uploads')), []);
   await jobs.initialize(); assert.equal(jobs.jobs.get(job.id)?.progress.stage, 'complete');
 });
+test('named clips reject duplicates and persist repeated key edits without rerunning inference', async t => {
+  const { mkdir, writeFile, readFile } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'polyphon-workflow-')); let inferences = 0;
+  const report = { schemaVersion: 1, engine: 'fixture', backend: 'fixture', durationSeconds: 1, noteCount: 1, runtimeSeconds: 1, peakMemoryMiB: 1, stageSeconds: {}, guidance: { tempo: 120, timeSignature: [4, 4] as [number, number] }, warnings: [] } as const;
+  const { server, jobs } = await createApp(dir, async options => {
+    inferences++; await mkdir(options.output, { recursive: true });
+    const midiPath = join(options.output, 'transcription.mid'), reportPath = join(options.output, 'report.json');
+    await writeFile(midiPath, 'MThd original bytes'); await writeFile(reportPath, JSON.stringify(report));
+    return { midiPath, reportPath, report: { ...report, warnings: [] } };
+  });
+  await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+  t.after(async () => { await new Promise<void>(r => server.close(() => r())); await rm(dir, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const suggestion = await (await fetch(base + '/api/clip-name')).json() as { name: string }; assert.match(suggestion.name, /^[a-z]+-[a-z]+$/);
+  const upload = (name: string) => fetch(base + '/api/jobs?' + new URLSearchParams({ filename: 'source.wav', name }), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: 'audio' });
+  const response = await upload('  My Song  '); assert.equal(response.status, 202); const job = await response.json() as { id: string };
+  const limit = Date.now() + 2000; while (jobs.pending && Date.now() < limit) await new Promise(r => setTimeout(r, 10));
+  assert.equal((await upload('my   song')).status, 409); assert.equal(inferences, 1);
+  const patch = (notationKey: unknown) => fetch(base + `/api/jobs/${job.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notationKey }) });
+  for (const key of [{ tonic: 'F#', mode: 'minor' }, { tonic: 'Db', mode: 'major' }, null]) assert.equal((await patch(key)).status, 200);
+  assert.equal((await patch({ tonic: 'H', mode: 'minor' })).status, 400);
+  assert.equal((await patch({ tonic: 'F#', mode: 'minor' })).status, 200);
+  assert.equal(inferences, 1); assert.equal(await readFile(join(jobs.output(job.id), 'transcription.mid'), 'utf8'), 'MThd original bytes');
+  await jobs.initialize(); const restored = jobs.jobs.get(job.id)!;
+  assert.equal(restored.name, 'My Song'); assert.equal(restored.sourceName, 'source.wav'); assert.deepEqual(restored.notationKey, { tonic: 'F#', mode: 'minor' });
+  assert.equal((await upload('MY SONG')).status, 409);
+  const generated = await upload(''); assert.equal(generated.status, 202); assert.match((await generated.json() as { name: string }).name, /^[a-z]+-[a-z]+$/);
+  const racing = await Promise.all([upload('Race Clip'), upload('race clip')]);
+  assert.deepEqual(racing.map(response => response.status).sort(), [202, 409]);
+  const end = Date.now() + 2000; while (jobs.pending && Date.now() < end) await new Promise(r => setTimeout(r, 10));
+});

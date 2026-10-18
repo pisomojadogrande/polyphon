@@ -55,3 +55,31 @@ test('shutdown cancels pending work and refuses new jobs', async t => {
   assert.equal(jobs.pending, 0); await assert.rejects(access(input));
   await assert.rejects(jobs.add(input, 'clip.wav', report.guidance), /shutting down/);
 });
+test('names are reserved across concurrent uploads and released only by cancellation/deletion', async t => {
+  const dir = await directory(t); const jobs = new Jobs(dir, async () => { throw new Error('Invalid audio'); }); await jobs.initialize();
+  const reservation = jobs.reserveName('  My   Clip  '); assert.equal(reservation.name, 'My Clip');
+  assert.throws(() => jobs.reserveName('my clip'), /already exists/);
+  assert.notEqual(jobs.suggestName(), 'My Clip'); jobs.releaseName(reservation);
+  const again = jobs.reserveName('MY CLIP'); jobs.releaseName(again);
+  const input = join(dir, 'uploads/bad.wav'); await writeFile(input, 'invalid');
+  const job = await jobs.add(input, 'My Clip', report.guidance); await waitUntil(() => jobs.pending === 0);
+  assert.throws(() => jobs.reserveName('my clip'), /already exists/);
+  await jobs.delete(job.id); const reusable = jobs.reserveName('my clip'); jobs.releaseName(reusable);
+});
+test('legacy duplicate labels migrate without losing MIDI; interrupted clips recover as failures', async t => {
+  const dir = await directory(t);
+  const ids = ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333'];
+  for (const [i, id] of ids.entries()) {
+    const path = join(dir, 'outputs', id); await mkdir(path, { recursive: true });
+    await writeFile(join(path, 'job.json'), JSON.stringify({ name: i < 2 ? 'same.wav' : 'unfinished', createdAt: Date.now(), ...(i === 2 ? { progress: { stage: 'queued' } } : {}) }));
+    if (i < 2) { await writeFile(join(path, 'transcription.mid'), 'original MIDI'); await writeFile(join(path, 'report.json'), JSON.stringify({ ...report, guidance: { ...report.guidance, key: 'F-sharp minor' } })); }
+  }
+  await mkdir(join(dir, 'uploads')); await writeFile(join(dir, 'uploads/private.wav'), 'audio');
+  const jobs = new Jobs(dir); await jobs.initialize();
+  assert.equal(jobs.jobs.get(ids[0])?.name, 'same.wav'); assert.equal(jobs.jobs.get(ids[1])?.name, 'same.wav (2)');
+  assert.deepEqual(jobs.jobs.get(ids[0])?.notationKey, { tonic: 'F#', mode: 'minor' });
+  assert.equal(await readFile(join(jobs.output(ids[1]), 'transcription.mid'), 'utf8'), 'original MIDI');
+  assert.equal(jobs.jobs.get(ids[2])?.progress.stage, 'failed'); await assert.rejects(access(join(dir, 'uploads/private.wav')));
+  assert.throws(() => jobs.reserveName('unfinished'), /already exists/);
+  const restored = new Jobs(dir); await restored.initialize(); assert.equal(restored.jobs.get(ids[1])?.name, 'same.wav (2)');
+});

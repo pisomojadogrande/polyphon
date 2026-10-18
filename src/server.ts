@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { Jobs } from './jobs.ts';
 import { transcribe } from './transcription.ts';
 import { acquireLock } from './lock.ts';
+import { parseMusicalKey, keyLabel } from './keys.ts';
 import { MAX_BYTES, EXTENSIONS, parseGuidance } from './contracts.ts';
 const root = fileURLToPath(new URL('../', import.meta.url));
 export async function createApp(directory = resolve(root, '.polyphon'), runner = transcribe) {
@@ -28,15 +29,18 @@ export async function createApp(directory = resolve(root, '.polyphon'), runner =
       if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host)) return send(403, { error: 'Use localhost or 127.0.0.1' });
       if (req.headers.origin && req.headers.origin !== `http://${host}`) return send(403, { error: 'Origin not allowed' });
       const url = new URL(req.url ?? '/', `http://${host}`);
+      if (req.method === 'GET' && url.pathname === '/api/clip-name') return send(200, { name: jobs.suggestName() });
       if (req.method === 'GET' && url.pathname === '/api/jobs') return send(200, [...jobs.jobs.values()].sort((a, b) => b.createdAt - a.createdAt));
       if (req.method === 'POST' && url.pathname === '/api/jobs') {
         if (jobs.pending + uploads >= 3) return send(429, { error: 'Queue full. Wait for a clip to finish.' });
         if (req.headers['content-type'] !== 'application/octet-stream') return send(415, { error: 'Use an audio file upload' });
-        const name = url.searchParams.get('name') ?? 'clip.wav', ext = extname(name).toLowerCase();
-        if (!EXTENSIONS.has(ext) || name.length > 200) return send(400, { error: 'Choose WAV, FLAC, MP3, OGG, or M4A' });
-        const guidance = parseGuidance(JSON.parse(url.searchParams.get('guidance') ?? '{}'));
+        const filename = url.searchParams.get('filename') ?? url.searchParams.get('name') ?? 'clip.wav', ext = extname(filename).toLowerCase();
+        if (!EXTENSIONS.has(ext) || filename.length > 200) return send(400, { error: 'Choose WAV, FLAC, MP3, OGG, or M4A' });
+        const notationKey = parseMusicalKey(JSON.parse(url.searchParams.get('key') ?? 'null'));
+        const guidance = parseGuidance({ ...JSON.parse(url.searchParams.get('guidance') ?? '{}'), ...(notationKey ? { key: keyLabel(notationKey) } : {}) });
         const length = Number(req.headers['content-length']);
         if (Number.isFinite(length) && length > MAX_BYTES) return send(413, { error: 'Maximum upload size is 64 MiB' });
+        const reservation = jobs.reserveName(url.searchParams.get('name'));
         const input = join(directory, 'uploads', randomUUID() + ext);
         uploads++;
         let bytes = 0;
@@ -44,15 +48,23 @@ export async function createApp(directory = resolve(root, '.polyphon'), runner =
           const limit = new Transform({ transform(chunk: Buffer, _encoding, callback) { bytes += chunk.length; callback(bytes > MAX_BYTES ? new Error('Upload exceeds 64 MiB') : null, chunk); } });
           await pipeline(req, limit, createWriteStream(input, { flags: 'wx', mode: 0o600 }));
           if (bytes === 0) throw new Error('Empty upload');
-          const job = await jobs.add(input, name, guidance);
+          const job = await jobs.add(input, reservation.name, guidance, { notationKey, sourceName: filename, reservation });
           return send(202, job);
         } catch (err) { await rm(input, { force: true }); throw err; }
-        finally { uploads--; }
+        finally { jobs.releaseName(reservation); uploads--; }
       }
       const match = /^\/api\/jobs\/([\da-f-]{36})(?:\/(midi|report))?$/.exec(url.pathname);
       if (match) {
         const [, id, artifact] = match, job = jobs.jobs.get(id);
         if (!job) return send(404, { error: 'Job not found or expired' });
+        if (req.method === 'PATCH' && !artifact) {
+          if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'Send JSON key settings' });
+          let body = '';
+          for await (const chunk of req) { body += chunk; if (Buffer.byteLength(body) > 2048) return send(413, { error: 'Key settings are too large' }); }
+          const value = JSON.parse(body);
+          if (!value || typeof value !== 'object' || !Object.hasOwn(value, 'notationKey')) return send(400, { error: 'Specify notationKey or null for unknown' });
+          return send(200, await jobs.setKey(id, value.notationKey));
+        }
         if (req.method === 'DELETE' && !artifact) { await jobs.delete(id); return send(200, { deleted: true }); }
         if (req.method === 'GET' && !artifact) return send(200, job);
         if (req.method === 'GET' && artifact && job.progress.stage === 'complete') {
@@ -69,7 +81,7 @@ export async function createApp(directory = resolve(root, '.polyphon'), runner =
         res.setHeader('Content-Type', type); await pipeline(createReadStream(join(root, file)), res); return;
       }
       send(404, { error: 'Not found' });
-    } catch (err) { send(400, { error: err instanceof Error ? err.message : String(err) }); }
+    } catch (err) { send(typeof err === 'object' && err && 'status' in err && err.status === 409 ? 409 : 400, { error: err instanceof Error ? err.message : String(err) }); }
   });
   server.requestTimeout = 120_000;
   server.on('close', () => { clearInterval(timer); void releaseLock().catch(console.error); });

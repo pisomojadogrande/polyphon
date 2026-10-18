@@ -1,7 +1,7 @@
 # Phase plan
 
-## Current direction (2026-10-17)
-The user has completed initial MIDI playback testing and requests **raw staff notation on localhost next**, before cloud infrastructure. The current detailed plan is `raw-notation-plan.md`. The user accepted a combined grand staff and left rhythm complexity to us; the simpler fixed-grid approximation is implemented with original-time playback. The raw notation/cursor milestone is locally verified and paused for user testing. Later key/measure guidance and cloud work remain deferred.
+## Current direction (2026-10-18)
+The user has reviewed raw notation and requested the local named-clip workflow and key-signature refinement. See `workflow-plan.md` for the detailed saved design and `workflow-testing.md` for acceptance steps. Implementation is complete: upload → progress → keyed score, persistent clip rail, unique generated names, and repeated notation-only re-engraving. Pause for user testing. Measure guidance and cloud remain deferred.
 
 
 ## Milestone 1: local audio → MIDI playback

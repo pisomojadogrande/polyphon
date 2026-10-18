@@ -2,7 +2,7 @@
 
 Read `docs/requirements.md`, `docs/plan.md`, and `docs/progress.md` before changing this project. The original idea is background, not a new request.
 
-The user has tested milestone 1 and requested raw MIDI staff notation on localhost next. Read `docs/raw-notation-plan.md`. The user accepted a combined grand staff; use the simpler readable fixed-grid rhythm approximation with original-time playback. The first raw score with synchronized playback is now implemented and ready for testing. Pause for user review; do not automatically add key-signature or measure-start input. Cloud work remains deferred. Do not deploy AWS resources or request long-term credentials.
+The user reviewed raw notation and requested the named-clip workflow and key-signature refinement on 2026-10-18. Read `docs/workflow-plan.md` and `docs/workflow-testing.md`. This workflow is implemented and ready for local testing: optional upload key, progress page, saved clip rail, and repeated key re-engraving. Pause for user feedback. Measure-start input, model improvements, and cloud work remain deferred. Do not deploy AWS resources or request long-term credentials.
 
 Use TypeScript for application/CLI; Python for Basic Pitch. Preserve shared modules and truthful progress. Never commit private recordings, generated audio/MIDI, runtime state, credentials, or dependency environments.
 

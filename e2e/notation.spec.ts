@@ -19,7 +19,7 @@ test('notation, fonts and synchronized transport work without external services'
   page.on('console', m => { if (m.text().includes('Content Security Policy')) csp.push(m.text()); });
   page.on('request', req => { if (req.url().startsWith('http') && new URL(req.url()).hostname !== '127.0.0.1') external.push(req.url()); });
   await page.goto('/');
-  await expect(page.locator('#tempo')).toHaveValue('');
+  await expect(page.locator('#clip-name')).toHaveValue(/^[a-z]+-[a-z]+$/);
   await page.locator('#midi').setInputFiles({ name: 'notation.mid', mimeType: 'audio/midi', buffer: example() });
   await expect(page.locator('#score-status')).toContainText('Measures 1–4 of 6');
   await expect(page.locator('#score svg')).toBeVisible();
@@ -67,24 +67,6 @@ test('empty MIDI clears notation and disables playback', async ({ page }) => {
   await expect(page.locator('#score')).toContainText('No notes to render');
   await expect(page.locator('#play')).toBeDisabled();
   await expect(page.locator('.score-cursor')).toHaveCount(0);
-});
-test('upload needs no tempo/key and completed MIDI opens the notation view', async ({ page }) => {
-  const job = { id: '12345678-1234-1234-1234-123456789abc', name: 'phrase.wav', createdAt: Date.now(), progress: { stage: 'complete' }, report: { schemaVersion: 1, engine: 'fixture', backend: 'ONNX', durationSeconds: 10.75, noteCount: 11, runtimeSeconds: 1, peakMemoryMiB: 100, stageSeconds: {}, guidance: { tempo: 120, timeSignature: [4, 4] }, warnings: [] } };
-  let uploaded = false;
-  await page.route(/\/api\/jobs(\?.*)?$/, async route => {
-    if (route.request().method() === 'POST') {
-      const guidance = JSON.parse(new URL(route.request().url()).searchParams.get('guidance')!);
-      expect(guidance.tempo).toBeUndefined(); expect(guidance.key).toBe('');
-      uploaded = true; await route.fulfill({ status: 202, json: job });
-    } else await route.fulfill({ json: uploaded ? [job] : [] });
-  });
-  await page.route(`**/api/jobs/${job.id}/midi`, route => route.fulfill({ contentType: 'audio/midi', body: example() }));
-  await page.goto('/');
-  await page.locator('#audio').setInputFiles({ name: 'phrase.wav', mimeType: 'audio/wav', buffer: Buffer.from('synthetic upload; worker mocked') });
-  await page.getByRole('button', { name: 'Transcribe audio', exact: true }).click();
-  await page.getByRole('button', { name: 'View notation & MIDI playback', exact: true }).click();
-  await expect(page.locator('#score-status')).toContainText('11 source notes');
-  await expect(page.locator('#score svg')).toBeVisible();
 });
 test('display-limit errors clear the previous score while leaving MIDI playback usable', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

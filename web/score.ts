@@ -1,3 +1,5 @@
+import { keyInfo, keyLabel } from '../src/keys.ts';
+import type { MusicalKey } from '../src/keys.ts';
 import { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, Dot, StaveConnector, StaveTie } from 'vexflow/bravura';
 import { accidentalsForBar, buildRawScore, PAGE_BARS, spellPitch, tickAtTime, tiedPitches, TICKS_PER_BAR } from '../src/notation.ts';
 import type { RawScore, ScoreEvent, SourceNote } from '../src/notation.ts';
@@ -7,6 +9,7 @@ const NS = 'http://www.w3.org/2000/svg';
 export class ScoreView {
   private score: RawScore = buildRawScore([]);
   private page = 0;
+  private key: MusicalKey | null = null;
   private cursor?: SVGLineElement;
   private geometry: Geometry[] = [];
   private seconds = 0;
@@ -24,22 +27,24 @@ export class ScoreView {
     this.score = buildRawScore([]); this.geometry = []; this.cursor = undefined;
     this.previous.disabled = this.next.disabled = true; this.host.replaceChildren();
   }
-  async load(notes: readonly SourceNote[]) {
+  async load(notes: readonly SourceNote[], key: MusicalKey | null = null) {
+    this.key = key;
     this.clear();
     this.score = buildRawScore(notes); this.page = 0; this.seconds = 0; this.lastBar = -1; this.following = true;
     await document.fonts.ready; // Bravura entry bundles its FontFace data; no CDN requests.
     this.render(); this.update(0, false);
   }
+  setKey(key: MusicalKey | null) { this.key = key; this.render(); this.update(this.seconds, false); }
   follow() { this.following = true; }
   private navigate(change: number) {
     this.page = Math.max(0, Math.min(this.page + change, Math.ceil(this.score.bars.length / PAGE_BARS) - 1));
     this.following = false; this.render(); this.update(this.seconds, false);
   }
   private makeNotes(events: ScoreEvent[], clef: string): Placed[] {
-    const signs = accidentalsForBar(events);
+    const signs = accidentalsForBar(events, this.key);
     return events.map((event, e) => {
       const rest = event.tones.length === 0;
-      const note = new StaveNote({ clef, keys: rest ? [clef === 'treble' ? 'b/4' : 'd/3'] : event.tones.map(tone => spellPitch(tone.midi).key), duration: event.duration + (rest ? 'r' : ''), dots: event.dotted ? 1 : 0, autoStem: true });
+      const note = new StaveNote({ clef, keys: rest ? [clef === 'treble' ? 'b/4' : 'd/3'] : event.tones.map(tone => spellPitch(tone.midi, this.key).key), duration: event.duration + (rest ? 'r' : ''), dots: event.dotted ? 1 : 0, autoStem: true });
       if (event.dotted) Dot.buildAndAttach([note]);
       if (!rest) for (const [index, sign] of signs[e].entries()) if (sign) note.addModifier(new Accidental(sign), index);
       return { event, note };
@@ -58,13 +63,15 @@ export class ScoreView {
     });
     const width = Math.max(760, this.host.clientWidth - 20, ...rows.map(row => {
       const voices = [row.treble, row.bass].map(notes => new Voice({ numBeats: 4, beatValue: 4 }).addTickables(notes.map(p => p.note)));
-      return 155 + new Formatter().joinVoices([voices[0]]).joinVoices([voices[1]]).preCalculateMinTotalWidth(voices);
+      return (this.key ? 260 : 155) + new Formatter().joinVoices([voices[0]]).joinVoices([voices[1]]).preCalculateMinTotalWidth(voices);
     }));
     const height = rows.reduce((sum, row) => sum + row.upper + 215 + row.extraBottom, 0);
     const renderer = new Renderer(this.host, Renderer.Backends.SVG); renderer.resize(width, height);
     const context = renderer.getContext();
     const svg = this.host.querySelector('svg')!;
-    svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Raw MIDI grand staff with provisional measures and explicit accidentals');
+    svg.dataset.keySignature = this.key ? keyInfo(this.key).signature : 'unknown';
+    svg.dataset.key = keyLabel(this.key);
+    svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', `Grand staff: ${keyLabel(this.key)}, provisional measures`);
     let y = 0;
     const previous: { treble?: Placed; bass?: Placed } = {};
     const tie = (first: Placed | undefined, last: Placed | undefined, half: 'left' | 'right' | undefined = undefined) => {
@@ -76,6 +83,7 @@ export class ScoreView {
     for (const row of rows) {
       const top = new Stave(28, y + row.upper, width - 45).addClef('treble');
       const bottom = new Stave(28, y + row.upper + 115, width - 45).addClef('bass');
+      if (this.key) { top.addKeySignature(keyInfo(this.key).signature); bottom.addKeySignature(keyInfo(this.key).signature); }
       if (row.bar.index === 0) { top.addTimeSignature('4/4'); bottom.addTimeSignature('4/4'); }
       const start = Math.max(top.getNoteStartX(), bottom.getNoteStartX()); top.setNoteStartX(start); bottom.setNoteStartX(start);
       top.setContext(context).draw(); bottom.setContext(context).draw();

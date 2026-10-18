@@ -1,3 +1,5 @@
+import { keySpelling, signatureAccidentals } from './keys.ts';
+import type { MusicalKey } from './keys.ts';
 /** Display-only notation. Source MIDI times and pitches are never rewritten. */
 export interface SourceNote { midi: number; time: number; duration: number; velocity: number; }
 export interface Tone { midi: number; ids: number[]; }
@@ -9,7 +11,8 @@ export const TICKS_PER_BAR = 16;
 export const TICKS_PER_SECOND = 8; // Sixteenths on a provisional 120 BPM / 4/4 display grid.
 export const PAGE_BARS = 4;
 const SPELLINGS = ['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b'];
-export function spellPitch(midi: number) {
+export function spellPitch(midi: number, key: MusicalKey | null = null) {
+  if (key) return keySpelling(midi, key);
   const spelling = SPELLINGS[midi % 12], octave = Math.floor(midi / 12) - 1;
   return { key: `${spelling}/${octave}`, accidental: spelling.slice(1) || 'n', position: `${spelling[0]}/${octave}` };
 }
@@ -86,19 +89,21 @@ export function tickAtTime(anchors: readonly TimeAnchor[], seconds: number): num
   return a.tick + (b.tick - a.tick) * (seconds - a.seconds) / (b.seconds - a.seconds);
 }
 /** Explicit chromatic signs, plus cancellations so C after C# never reads as C#. */
-export function accidentalsForBar(events: readonly ScoreEvent[]): (string | null)[][] {
+export function accidentalsForBar(events: readonly ScoreEvent[], key: MusicalKey | null = null): (string | null)[][] {
+  const defaults = signatureAccidentals(key);
   const state = new Map<string, string>();
   return events.map(event => {
     const previous = new Map(state), simultaneous = new Map<string, Set<string>>();
     for (const tone of event.tones) {
-      const p = spellPitch(tone.midi), signs = simultaneous.get(p.position) ?? new Set<string>();
+      const p = spellPitch(tone.midi, key), signs = simultaneous.get(p.position) ?? new Set<string>();
       signs.add(p.accidental); simultaneous.set(p.position, signs);
     }
     const result = event.tones.map(tone => {
-      const p = spellPitch(tone.midi);
-      return simultaneous.get(p.position)!.size > 1 || p.accidental !== 'n' || (previous.has(p.position) && previous.get(p.position) !== 'n') ? p.accidental : null;
+      const p = spellPitch(tone.midi, key);
+      const current = previous.get(p.position) ?? defaults[p.position[0]];
+      return simultaneous.get(p.position)!.size > 1 || (key ? p.accidental !== current : p.accidental !== 'n' || current !== 'n') ? p.accidental : null;
     });
-    for (const tone of event.tones) { const p = spellPitch(tone.midi); state.set(p.position, simultaneous.get(p.position)!.size > 1 ? 'mixed' : p.accidental); }
+    for (const tone of event.tones) { const p = spellPitch(tone.midi, key); state.set(p.position, simultaneous.get(p.position)!.size > 1 ? 'mixed' : p.accidental); }
     return result;
   });
 }

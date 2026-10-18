@@ -1,6 +1,17 @@
 # Current progress / clean-context handoff
 
-Updated: 2026-10-17. **Raw grand-staff notation with synchronized playback is implemented and ready for user testing on localhost. Stop at this milestone.**
+Updated: 2026-10-18. **Named-clip workflow and key-signature re-engraving are implemented and ready for local user testing. Stop here.**
+
+## Current workflow handoff (2026-10-18)
+- Requirements/design saved in `workflow-plan.md`; user instructions in `workflow-testing.md` and README. Previous raw-notation notes below are historical and superseded where they defer key input.
+- Upload now asks for audio, an editable generated dictionary-pair name, and optional tonic/mode only. Hash routes move through upload/progress/results and support back/forward/refresh.
+- Collapsible responsive left rail lists saved clips. Names are normalized and unique, including concurrent uploads and failed clips. Failed/interrupted clips persist explicitly; delete to reuse names. Legacy duplicate filenames migrate with suffixes without losing MIDI.
+- Typed musical keys drive signatures, enharmonic octave handling, minor leading-tone spelling and accidental cancellation. F-sharp minor renders three sharps. Unsupported theoretical signatures show their conventional enharmonic rendering explicitly.
+- Re-transcribe saves notation metadata and re-engraves without another model run or MIDI mutation. Playback pauses at its position. Source timing, cursor, page following, seek, speed, and downloads remain available. MIDI-file preview is secondary and unsaved.
+- `npm run check`: 34 Node tests pass. Browser suite: 7 tests pass, including upload/progress/results, repeated key edits, history/reload, duplicates, mobile rail, and stale MIDI response protection. Pitch spelling is checked for all offered tonic/mode combinations across all 128 MIDI pitches.
+- Actual Basic Pitch F-sharp-minor synthetic fixture passed upload → score → key edit → moving-cursor playback; MIDI bytes remained identical. Real server restart restored clip/name/key/MIDI; duplicate uppercase name was rejected. Generated test clip then deleted. No new human musical-quality claim is made.
+- Python dependencies unchanged. No AWS actions. Existing 7-day expiry/200 MiB cap remain; changing a key does not renew retention. Key changes affect the displayed score, not exported MIDI/report guidance.
+- Remaining limits: provisional 120 BPM/4/4/sixteenth grid, pitch-based treble/bass split, imperfect Basic Pitch notes, no measure-start editing or voice identification. Next action is user testing of this workflow, not automatic cloud or score refinement.
 
 ## Latest user feedback and next phase
 - User reports imperfect MIDI transcription that captures many, but not all, harmonies. They want to explore the result rather than assume a full accurate score is achievable.
@@ -68,4 +79,4 @@ Updated: 2026-10-17. **Raw grand-staff notation with synchronized playback is im
 Follow README setup, open localhost, test 10–30 second excerpts of a solo voice, a cappella ensemble, and voice/instrument mix. Download MIDI/reports and supply usefulness ratings and error timestamps using `docs/evaluation.md`. Stop after those results; we should refine this experiment before moving to cloud.
 
 ## Continuation guidance (updated by the latest feedback above)
-Read `AGENTS.md`, `docs/requirements.md`, `docs/plan.md`, and this file. Do not restart onboarding or implement later phases beyond the requested raw notation milestone automatically. Preserve the milestone pauses. Actual singing quality and representative three-minute runtime/memory remain unknown. Use collected measurements to decide whether preprocessing/source separation/model changes are warranted and only then propose AWS compute within the $5/month target. User handles bootstrap/trust; future deployment must use OIDC, separate accounts and us-east-1, test from main and approval for production.
+Read `AGENTS.md`, `docs/requirements.md`, `docs/plan.md`, and this file. Do not restart onboarding or implement later phases beyond the requested clip workflow/key-signature milestone automatically. Preserve the milestone pauses. Actual singing quality and representative three-minute runtime/memory remain unknown. Use collected measurements to decide whether preprocessing/source separation/model changes are warranted and only then propose AWS compute within the $5/month target. User handles bootstrap/trust; future deployment must use OIDC, separate accounts and us-east-1, test from main and approval for production.
