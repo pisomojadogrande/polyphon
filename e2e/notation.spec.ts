@@ -21,7 +21,7 @@ test('notation, fonts and synchronized transport work without external services'
   await page.goto('/');
   await expect(page.locator('#clip-name')).toHaveValue(/^[a-z]+-[a-z]+$/);
   await page.locator('#midi').setInputFiles({ name: 'notation.mid', mimeType: 'audio/midi', buffer: example() });
-  await expect(page.locator('#score-status')).toContainText('Measures 1–4 of 6');
+  await expect(page.locator('#score-status')).toContainText('6 provisional measures');
   await expect(page.locator('#score svg')).toBeVisible();
   expect(await page.evaluate(() => document.fonts.check('16px Bravura'))).toBeTruthy();
   const cursor = page.locator('.score-cursor');
@@ -37,7 +37,11 @@ test('notation, fonts and synchronized transport work without external services'
   await expect.poll(async () => Number(await cursor.getAttribute('data-seconds'))).toBeGreaterThan(Number(paused));
   await page.locator('#position').fill('8.2'); await page.locator('#position').dispatchEvent('input');
   await expect(page.locator('#play')).toHaveText('Play');
-  await expect(page.locator('#score-status')).toContainText('Measures 5–6 of 6');
+  await expect(page.locator('.bar-label')).toHaveCount(6);
+  await expect(page.locator('.bar-label').first()).toHaveText('Provisional measure 1 · Source 0:00.0');
+  await expect(page.locator('.bar-label').nth(4)).toContainText('Source 0:08.');
+  await expect(page.locator('#score-next, #score-previous')).toHaveCount(0);
+  await expect.poll(() => page.locator('#score').evaluate(el => el.scrollTop)).toBeGreaterThan(900);
   await expect(cursor).toHaveAttribute('data-bar', '5');
   await page.locator('#speed').selectOption('0.5');
   expect(Number(await page.locator('#position').inputValue())).toBeCloseTo(8.2, 1);
@@ -49,12 +53,11 @@ test('notation, fonts and synchronized transport work without external services'
   await page.locator('#stop').click();
   await expect(page.locator('#position')).toHaveValue('0');
   await expect(cursor).toHaveAttribute('data-seconds', '0.000');
-  await expect(page.locator('#score-status')).toContainText('Measures 1–4');
-  await page.locator('#score-next').click(); await expect(page.locator('#score-status')).toContainText('Measures 5–6');
-  await page.locator('#stop').click(); await expect(page.locator('#score-status')).toContainText('Measures 1–4');
+  await expect.poll(() => page.locator('#score').evaluate(el => el.scrollTop)).toBe(0);
   await page.locator('#position').fill('7.8'); await page.locator('#position').dispatchEvent('input');
   await page.locator('#speed').selectOption('1'); await page.locator('#play').click();
-  await expect(page.locator('#score-status')).toContainText('Measures 5–6', { timeout: 3000 });
+  await expect(cursor).toHaveAttribute('data-bar', '5', { timeout: 3000 });
+  await expect.poll(() => page.locator('#score').evaluate(el => el.scrollTop)).toBeGreaterThan(900);
   await page.locator('#stop').click();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
@@ -80,4 +83,50 @@ test('display-limit errors clear the previous score while leaving MIDI playback 
   await page.locator('#play').click(); await expect(page.locator('#play')).toHaveText('Pause');
   await page.locator('#stop').click();
   expect(errors).toEqual([]);
+});
+
+test('continuous score aligns playing and sought systems at the top, including the final system', async ({ page }) => {
+  const midi = new Midi(); const track = midi.addTrack();
+  // Rounded starts are deliberately offset from the two-second display grid.
+  for (let i = 0; i < 8; i++) track.addNote({ midi: 66, time: i * 2 + 0.04, duration: 1.5, velocity: 0.6 });
+  await page.goto('/');
+  await page.locator('#midi').setInputFiles({ name: 'scroll.mid', mimeType: 'audio/midi', buffer: Buffer.from(midi.toArray()) });
+  await expect(page.locator('.bar-label')).toHaveCount(8);
+  const pane = page.locator('#score'), cursor = page.locator('.score-cursor');
+  const alignment = () => page.evaluate(() => {
+    const pane = document.getElementById('score')!;
+    const bar = document.querySelector('.score-cursor')!.getAttribute('data-bar');
+    const label = document.querySelector(`.bar-label[data-bar="${bar}"]`)!;
+    return label.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+  });
+  const seek = async (seconds: string, bar: string) => {
+    await page.locator('#position').fill(seconds); await page.locator('#position').dispatchEvent('input');
+    await expect(cursor).toHaveAttribute('data-bar', bar);
+    await expect.poll(alignment).toBeGreaterThan(0);
+    await expect.poll(alignment).toBeLessThan(40);
+  };
+  await seek('14.2', '8'); // Last system must have enough trailing space to align.
+  await seek('4.2', '3'); // Backward seek while paused.
+  const followed = await pane.evaluate(el => el.scrollTop);
+  await pane.evaluate(el => { el.scrollTop = 0; });
+  await page.waitForTimeout(150); expect(await pane.evaluate(el => el.scrollTop)).toBe(0);
+  await page.locator('#play').click();
+  await expect.poll(() => pane.evaluate(el => el.scrollTop)).toBeCloseTo(followed, 0);
+  // Auto-follow should not move the document, only the score pane.
+  await page.locator('#play').click();
+  await seek('5.8', '3');
+  await page.locator('#play').click(); const outer = await page.evaluate(() => window.scrollY);
+  await expect(cursor).toHaveAttribute('data-bar', '4', { timeout: 3000 });
+  await expect.poll(alignment).toBeGreaterThan(0); await expect.poll(alignment).toBeLessThan(40);
+  expect(await page.evaluate(() => window.scrollY)).toBe(outer);
+  await page.locator('#stop').click(); await expect.poll(() => pane.evaluate(el => el.scrollTop)).toBe(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.locator('#rail-toggle').getAttribute('aria-expanded') === 'true') await page.locator('#rail-toggle').click();
+  await seek('15.4', '8');
+  await page.locator('#play').click();
+  await expect(page.locator('#play')).toHaveText('Play', { timeout: 3000 });
+  await expect.poll(() => pane.evaluate(el => el.scrollTop)).toBe(0);
+  await seek('14.2', '8');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.screenshot({ path: 'work/continuous-score-mobile.png', fullPage: true });
 });

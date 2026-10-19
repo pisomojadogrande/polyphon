@@ -3,11 +3,11 @@ import { createInterface } from 'node:readline';
 import { stat, mkdir, readFile, writeFile, rename, rm } from 'node:fs/promises';
 import { extname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EXTENSIONS, MAX_BYTES, parseGuidance } from './contracts.ts';
-import type { Guidance, Progress, Report, Result } from './contracts.ts';
+import { EXTENSIONS, MAX_BYTES, parseAudioRange, parseGuidance } from './contracts.ts';
+import type { AudioRange, Guidance, Progress, Report, Result } from './contracts.ts';
 const root = fileURLToPath(new URL('../', import.meta.url));
 export interface TranscribeOptions {
-  input: string; output: string; guidance?: Guidance; python?: string;
+  input: string; output: string; guidance?: Guidance; range?: AudioRange; python?: string;
   onProgress?: (progress: Progress) => void; signal?: AbortSignal;
   /** Dependency seam for process/protocol tests, never exposed by the web API. */
   worker?: string; timeoutMs?: number;
@@ -15,6 +15,7 @@ export interface TranscribeOptions {
 export async function transcribe(options: TranscribeOptions): Promise<Result> {
   const input = resolve(options.input), output = resolve(options.output);
   const guidance = parseGuidance(options.guidance ?? {});
+  const range = parseAudioRange(options.range ?? {});
   if (!EXTENSIONS.has(extname(input).toLowerCase())) throw new Error('Supported files: WAV, FLAC, MP3, OGG, M4A');
   const info = await stat(input);
   if (!info.isFile() || info.size === 0 || info.size > MAX_BYTES) throw new Error('Audio must be a non-empty file of at most 64 MiB');
@@ -23,7 +24,7 @@ export async function transcribe(options: TranscribeOptions): Promise<Result> {
   const tempMidi = join(temporary, 'transcription.mid');
   try {
     const metrics = await new Promise<Omit<Report, 'guidance'>>((resolvePromise, reject) => {
-      const child = spawn(options.python ?? process.env.POLYPHON_PYTHON ?? join(root, '.venv/bin/python'), [options.worker ?? join(root, 'python/transcribe.py'), '--input', input, '--output', tempMidi, '--tempo', String(guidance.tempo), '--numerator', String(guidance.timeSignature[0]), '--denominator', String(guidance.timeSignature[1])], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, TF_CPP_MIN_LOG_LEVEL: '3', OMP_NUM_THREADS: '2' } });
+      const child = spawn(options.python ?? process.env.POLYPHON_PYTHON ?? join(root, '.venv/bin/python'), [options.worker ?? join(root, 'python/transcribe.py'), '--input', input, '--output', tempMidi, '--tempo', String(guidance.tempo), '--numerator', String(guidance.timeSignature[0]), '--denominator', String(guidance.timeSignature[1]), '--start', String(range.startSeconds), ...(range.endSeconds === undefined ? [] : ['--end', String(range.endSeconds)])], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, TF_CPP_MIN_LOG_LEVEL: '3', OMP_NUM_THREADS: '2' } });
       let stderr = '', result: Omit<Report, 'guidance'> | undefined, error = '', killed = '';
       const terminate = (reason: string) => { killed = reason; child.kill('SIGKILL'); };
       const timer = setTimeout(() => terminate('Transcription timed out after 15 minutes'), options.timeoutMs ?? 15 * 60 * 1000);

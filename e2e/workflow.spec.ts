@@ -117,3 +117,55 @@ test('a slow previous MIDI response cannot replace the newly selected clip', asy
   await expect(page.locator('#result-title')).toHaveText('Chosen clip');
   await expect(page.locator('#score svg')).toHaveAttribute('data-key-signature', 'G');
 });
+
+test('optional source times are validated before upload and retained in source measure labels', async ({ page }) => {
+  let uploaded = false;
+  const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const item = { id, name: 'cropped-clip', createdAt: Date.now(), notationKey: null, progress: { stage: 'complete' }, report: { noteCount: 3, durationSeconds: 30, runtimeSeconds: 1, peakMemoryMiB: 1, warnings: [], sourceRange: { startSeconds: 90, endSeconds: 120, sourceDurationSeconds: 180 } } };
+  await page.route('**/api/clip-name', route => route.fulfill({ json: { name: 'cropped-clip' } }));
+  await page.route(/\/api\/jobs(\?.*)?$/, route => {
+    if (route.request().method() === 'POST') {
+      const params = new URL(route.request().url()).searchParams;
+      expect(JSON.parse(params.get('range')!)).toEqual({ startSeconds: 90, endSeconds: 120 });
+      uploaded = true; return route.fulfill({ status: 202, json: item });
+    }
+    return route.fulfill({ json: uploaded ? [item] : [] });
+  });
+  await page.route('**/api/jobs/*/midi', route => route.fulfill({ contentType: 'audio/midi', body: midiBytes() }));
+  await page.goto('/'); await expect(page.locator('#clip-name')).toHaveValue('cropped-clip');
+  await page.locator('#range-options summary').click();
+  await page.locator('#range-start').fill('1:30'); await page.locator('#range-end').fill('1:00');
+  await page.locator('#audio').setInputFiles({ name: 'full.wav', mimeType: 'audio/wav', buffer: Buffer.from('mocked audio') });
+  await page.getByRole('button', { name: 'Upload & transcribe', exact: true }).click();
+  await expect(page.locator('#upload-status')).toContainText('End time must be after'); expect(uploaded).toBe(false);
+  await page.locator('#range-end').fill('2:00');
+  await page.getByRole('button', { name: 'Upload & transcribe', exact: true }).click();
+  await expect(page.locator('.bar-label').first()).toHaveText('Provisional measure 1 · Source 1:30.0');
+  await page.reload(); await expect(page.locator('.bar-label').first()).toContainText('Source 1:30.0');
+});
+
+test('rail trash confirms the clip name, cancellation preserves it, and deleting another clip keeps current playback', async ({ page }) => {
+  const a = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', b = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+  const saved = (id: string, name: string) => ({ id, name, createdAt: Date.now(), progress: { stage: 'complete' }, notationKey: null });
+  let items = [saved(a, 'gentle-willow'), saved(b, 'bright-river')], deletions = 0;
+  await page.route(/\/api\/jobs$/, route => route.fulfill({ json: items }));
+  await page.route(/\/api\/jobs\/[^/]+$/, route => {
+    expect(route.request().method()).toBe('DELETE'); deletions++;
+    items = items.filter(item => !route.request().url().endsWith(item.id));
+    return route.fulfill({ json: { deleted: true } });
+  });
+  await page.route('**/api/jobs/*/midi', route => route.fulfill({ contentType: 'audio/midi', body: midiBytes() }));
+  await page.goto(`/#clips/${a}`); await expect(page.locator('#score svg')).toBeVisible();
+  page.once('dialog', async dialog => { expect(dialog.message()).toBe('Delete bright-river?'); await dialog.dismiss(); });
+  await page.getByRole('button', { name: 'Delete bright-river', exact: true }).click();
+  expect(deletions).toBe(0); await expect(page.locator(`#clip-list a[href="#clips/${b}"]`)).toBeVisible();
+  await page.locator('#play').click();
+  page.once('dialog', async dialog => { expect(dialog.message()).toBe('Delete bright-river?'); await dialog.accept(); });
+  await page.getByRole('button', { name: 'Delete bright-river', exact: true }).click();
+  await expect(page.locator(`#clip-list a[href="#clips/${b}"]`)).toHaveCount(0);
+  await expect(page.locator('#result-title')).toHaveText('gentle-willow'); await expect(page.locator('#play')).toHaveText('Pause');
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Delete gentle-willow', exact: true }).click();
+  await expect(page.locator('#new-page')).toBeVisible(); expect(deletions).toBe(2);
+  await expect(page.locator('#clips-empty')).toBeVisible();
+});

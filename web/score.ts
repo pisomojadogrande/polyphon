@@ -1,45 +1,49 @@
 import { keyInfo, keyLabel } from '../src/keys.ts';
 import type { MusicalKey } from '../src/keys.ts';
 import { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, Dot, StaveConnector, StaveTie } from 'vexflow/bravura';
-import { accidentalsForBar, buildRawScore, PAGE_BARS, spellPitch, tickAtTime, tiedPitches, TICKS_PER_BAR } from '../src/notation.ts';
+import { accidentalsForBar, buildRawScore, sourceTimestamp, spellPitch, tickAtTime, timeAtTick, tiedPitches, TICKS_PER_BAR } from '../src/notation.ts';
 import type { RawScore, ScoreEvent, SourceNote } from '../src/notation.ts';
 interface Placed { event: ScoreEvent; note: StaveNote; }
-interface Geometry { bar: number; top: number; bottom: number; points: { tick: number; x: number }[]; }
+interface Geometry { bar: number; start: number; top: number; bottom: number; points: { tick: number; x: number }[]; }
 const NS = 'http://www.w3.org/2000/svg';
 export class ScoreView {
   private score: RawScore = buildRawScore([]);
-  private page = 0;
   private key: MusicalKey | null = null;
   private cursor?: SVGLineElement;
   private geometry: Geometry[] = [];
   private seconds = 0;
-  private following = true;
-  private lastBar = -1;
+  private sourceOffset = 0;
+  private align = true;
+  private contentHeight = 0;
+  private lastRowHeight = 0;
   private host: HTMLDivElement;
   private status: HTMLElement;
-  private previous: HTMLButtonElement;
-  private next: HTMLButtonElement;
-  constructor(host: HTMLDivElement, status: HTMLElement, previous: HTMLButtonElement, next: HTMLButtonElement) {
-    this.host = host; this.status = status; this.previous = previous; this.next = next;
-    previous.onclick = () => this.navigate(-1); next.onclick = () => this.navigate(1);
+  constructor(host: HTMLDivElement, status: HTMLElement) {
+    this.host = host; this.status = status;
+    new ResizeObserver(() => this.resizeTail()).observe(host);
+  }
+  private resizeTail() {
+    // Extra space lets the final system reach the top, just like every other system.
+    const svg = this.host.querySelector('svg');
+    if (svg) {
+      const height = this.contentHeight + Math.max(0, this.host.clientHeight - this.lastRowHeight - 20);
+      svg.setAttribute('height', String(height)); svg.style.height = `${height}px`;
+      svg.setAttribute('viewBox', `0 0 ${svg.getAttribute('width')} ${height}`);
+    }
   }
   clear() {
     this.score = buildRawScore([]); this.geometry = []; this.cursor = undefined;
-    this.previous.disabled = this.next.disabled = true; this.host.replaceChildren();
+    this.contentHeight = 0; this.lastRowHeight = 0; this.host.replaceChildren(); this.host.scrollTop = this.host.scrollLeft = 0;
   }
-  async load(notes: readonly SourceNote[], key: MusicalKey | null = null) {
-    this.key = key;
+  async load(notes: readonly SourceNote[], key: MusicalKey | null = null, sourceOffset = 0) {
+    this.key = key; this.sourceOffset = sourceOffset;
     this.clear();
-    this.score = buildRawScore(notes); this.page = 0; this.seconds = 0; this.lastBar = -1; this.following = true;
+    this.score = buildRawScore(notes); this.seconds = 0; this.align = true;
     await document.fonts.ready; // Bravura entry bundles its FontFace data; no CDN requests.
     this.render(); this.update(0, false);
   }
-  setKey(key: MusicalKey | null) { this.key = key; this.render(); this.update(this.seconds, false); }
-  follow() { this.following = true; }
-  private navigate(change: number) {
-    this.page = Math.max(0, Math.min(this.page + change, Math.ceil(this.score.bars.length / PAGE_BARS) - 1));
-    this.following = false; this.render(); this.update(this.seconds, false);
-  }
+  setKey(key: MusicalKey | null) { this.key = key; this.align = true; this.render(); this.update(this.seconds, false); }
+  follow() { this.align = true; }
   private makeNotes(events: ScoreEvent[], clef: string): Placed[] {
     const signs = accidentalsForBar(events, this.key);
     return events.map((event, e) => {
@@ -52,9 +56,7 @@ export class ScoreView {
   }
   private render() {
     this.host.replaceChildren(); this.geometry = []; this.cursor = undefined;
-    const bars = this.score.bars.slice(this.page * PAGE_BARS, (this.page + 1) * PAGE_BARS);
-    this.previous.disabled = this.page === 0;
-    this.next.disabled = (this.page + 1) * PAGE_BARS >= this.score.bars.length;
+    const bars = this.score.bars;
     if (!bars.length) { this.host.textContent = 'No notes to render. Transcribe a clip or open a MIDI file.'; this.status.textContent = 'No score loaded'; return; }
     const rows = bars.map(bar => {
       const all = [...bar.treble, ...bar.bass].flatMap(e => e.tones.map(t => t.midi));
@@ -66,6 +68,8 @@ export class ScoreView {
       return (this.key ? 260 : 155) + new Formatter().joinVoices([voices[0]]).joinVoices([voices[1]]).preCalculateMinTotalWidth(voices);
     }));
     const height = rows.reduce((sum, row) => sum + row.upper + 215 + row.extraBottom, 0);
+    this.contentHeight = height;
+    const lastRow = rows[rows.length - 1]; this.lastRowHeight = lastRow.upper + 215 + lastRow.extraBottom;
     const renderer = new Renderer(this.host, Renderer.Backends.SVG); renderer.resize(width, height);
     const context = renderer.getContext();
     const svg = this.host.querySelector('svg')!;
@@ -97,35 +101,27 @@ export class ScoreView {
       for (const [name, placed] of [['treble', row.treble], ['bass', row.bass]] as const) {
         // Ties across systems draw outgoing/incoming halves instead of a diagonal line.
         if (previous[name]) { tie(previous[name], placed[0], 'right'); tie(previous[name], placed[0], 'left'); }
-        else if (row.bar.index > 0) {
-          const priorEvents = this.score.bars[row.bar.index - 1][name];
-          tie({ event: priorEvents[priorEvents.length - 1], note: placed[0].note }, placed[0], 'left');
-        }
         for (let i = 1; i < placed.length; i++) tie(placed[i - 1], placed[i]);
         previous[name] = placed[placed.length - 1];
-        if (row === rows[rows.length - 1] && row.bar.index + 1 < this.score.bars.length) {
-          const nextEvent = this.score.bars[row.bar.index + 1][name][0];
-          tie(previous[name], { event: nextEvent, note: previous[name]!.note }, 'right');
-        }
       }
       const points = new Map<number, number>();
       for (const placed of [...row.treble, ...row.bass]) points.set(placed.event.tick, placed.note.getAbsoluteX() + 5);
       points.set((row.bar.index + 1) * TICKS_PER_BAR, top.getNoteEndX() - 3);
-      this.geometry.push({ bar: row.bar.index, top: y + row.upper + 12, bottom: y + row.upper + 200, points: [...points].sort(([a], [b]) => a - b).map(([tick, x]) => ({ tick, x })) });
-      const label = document.createElementNS(NS, 'text'); label.setAttribute('x', '28'); label.setAttribute('y', String(y + 20)); label.setAttribute('class', 'bar-label'); label.textContent = `Provisional measure ${row.bar.index + 1}`; svg.append(label);
+      this.geometry.push({ bar: row.bar.index, start: y, top: y + row.upper + 12, bottom: y + row.upper + 200, points: [...points].sort(([a], [b]) => a - b).map(([tick, x]) => ({ tick, x })) });
+      const label = document.createElementNS(NS, 'text'); label.setAttribute('x', '28'); label.setAttribute('y', String(y + 20)); label.setAttribute('class', 'bar-label'); label.dataset.bar = String(row.bar.index + 1); label.dataset.seconds = String(this.sourceOffset + timeAtTick(this.score.anchors, row.bar.index * TICKS_PER_BAR)); label.textContent = `Provisional measure ${row.bar.index + 1} · Source ${sourceTimestamp(Number(label.dataset.seconds))}`; svg.append(label);
       y += row.upper + 215 + row.extraBottom;
     }
     this.cursor = document.createElementNS(NS, 'line'); this.cursor.setAttribute('class', 'score-cursor'); this.cursor.setAttribute('aria-hidden', 'true'); svg.append(this.cursor);
-    this.status.textContent = `Measures ${bars[0].index + 1}–${bars[bars.length - 1].index + 1} of ${this.score.bars.length} · ${this.score.noteCount} source notes`;
+    this.resizeTail();
+    this.status.textContent = `${bars.length} provisional measures · ${this.score.noteCount} source notes`;
     if (this.score.warnings.length) this.status.textContent += ' · ' + this.score.warnings.join(' ');
   }
   update(seconds: number, playing: boolean) {
+    const positionChanged = seconds !== this.seconds;
     this.seconds = seconds;
     if (!this.score.bars.length) return;
     const tick = tickAtTime(this.score.anchors, seconds);
     const bar = Math.min(this.score.bars.length - 1, Math.floor(tick / TICKS_PER_BAR));
-    if (playing) this.following = true;
-    if ((playing || this.following) && Math.floor(bar / PAGE_BARS) !== this.page) { this.page = Math.floor(bar / PAGE_BARS); this.render(); }
     const row = this.geometry.find(g => g.bar === bar);
     if (!this.cursor) return;
     this.cursor.setAttribute('visibility', row ? 'visible' : 'hidden');
@@ -136,12 +132,11 @@ export class ScoreView {
     const x = a.x + (b.x - a.x) * fraction;
     for (const [key, value] of Object.entries({ x1: x, x2: x, y1: row.top, y2: row.bottom })) this.cursor.setAttribute(key, String(value));
     this.cursor.dataset.seconds = seconds.toFixed(3); this.cursor.dataset.bar = String(bar + 1);
-    if (playing && bar !== this.lastBar) {
-      // Follow within the notation pane without pulling the whole page away from controls.
-      const visibleHeight = this.host.clientHeight;
-      if (row.top < this.host.scrollTop || row.bottom > this.host.scrollTop + visibleHeight) this.host.scrollTop = Math.max(0, row.top - 35);
-      this.lastBar = bar;
+    if (playing || this.align || positionChanged) {
+      // The current system stays at the pane's top, including after paused seeks.
+      this.host.scrollTop = row.start;
+      if (x < this.host.scrollLeft + 20 || x > this.host.scrollLeft + this.host.clientWidth - 30) this.host.scrollLeft = Math.max(0, x - this.host.clientWidth / 2);
+      this.align = false;
     }
-    if (playing && (x < this.host.scrollLeft + 20 || x > this.host.scrollLeft + this.host.clientWidth - 30)) this.host.scrollLeft = Math.max(0, x - this.host.clientWidth / 2);
   }
 }

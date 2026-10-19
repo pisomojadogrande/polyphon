@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { accidentalsForBar, buildRawScore, spellPitch, splitRhythm, tickAtTime, tiedPitches } from '../src/notation.ts';
+import { accidentalsForBar, buildRawScore, spellPitch, splitRhythm, tickAtTime, timeAtTick, sourceTimestamp, tiedPitches } from '../src/notation.ts';
 const n = (midi: number, time: number, duration: number) => ({ midi, time, duration, velocity: 0.8 });
 test('grand staff keeps overlapping harmonies and rests without changing source MIDI', () => {
   const notes = [n(48, 0, 2.5), n(60, 0, 1), n(64, 0, 1), n(67, 0.5, 0.5), n(73, 3, 0.3)];
@@ -59,4 +59,20 @@ test('simultaneous natural/chromatic unisons explicitly disambiguate both heads'
   const events = buildRawScore([n(60, 0, 0.5), n(61, 0, 0.5), n(60, 0.5, 0.5)]).bars[0].treble;
   const signs = accidentalsForBar(events);
   assert.deepEqual(signs[0], ['n', '#']); assert.deepEqual(signs[1], ['n']);
+});
+
+test('measure timestamps invert the source cursor mapping through rests and rounding', () => {
+  const score = buildRawScore([n(60, 0.19, 0.2), n(64, 3.09, 0.1), n(67, 11.12, 0.8)]);
+  for (const bar of score.bars) {
+    const tick = bar.index * 16, seconds = timeAtTick(score.anchors, tick);
+    assert.ok(Math.abs(tickAtTime(score.anchors, seconds) - tick) < 1e-8);
+  }
+  assert.equal(timeAtTick([], 16), 0);
+  assert.equal(timeAtTick(score.anchors, -1), 0);
+  assert.equal(timeAtTick(score.anchors, 10000), score.duration);
+  const plateau = [{ seconds: 0, tick: 0 }, { seconds: 1, tick: 8 }, { seconds: 1.01, tick: 8 }, { seconds: 2, tick: 16 }];
+  assert.equal(timeAtTick(plateau, 8), 1);
+  assert.equal(sourceTimestamp(0), '0:00.0');
+  assert.equal(sourceTimestamp(59.99), '1:00.0');
+  assert.equal(sourceTimestamp(123.45), '2:03.5');
 });

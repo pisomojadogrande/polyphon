@@ -56,10 +56,10 @@ test('completed result downloads MIDI/report and remains available after restart
 });
 test('named clips reject duplicates and persist repeated key edits without rerunning inference', async t => {
   const { mkdir, writeFile, readFile } = await import('node:fs/promises');
-  const dir = await mkdtemp(join(tmpdir(), 'polyphon-workflow-')); let inferences = 0;
+  const dir = await mkdtemp(join(tmpdir(), 'polyphon-workflow-')); let inferences = 0; let receivedRange: unknown;
   const report = { schemaVersion: 1, engine: 'fixture', backend: 'fixture', durationSeconds: 1, noteCount: 1, runtimeSeconds: 1, peakMemoryMiB: 1, stageSeconds: {}, guidance: { tempo: 120, timeSignature: [4, 4] as [number, number] }, warnings: [] } as const;
   const { server, jobs } = await createApp(dir, async options => {
-    inferences++; await mkdir(options.output, { recursive: true });
+    inferences++; receivedRange = options.range; await mkdir(options.output, { recursive: true });
     const midiPath = join(options.output, 'transcription.mid'), reportPath = join(options.output, 'report.json');
     await writeFile(midiPath, 'MThd original bytes'); await writeFile(reportPath, JSON.stringify(report));
     return { midiPath, reportPath, report: { ...report, warnings: [] } };
@@ -68,9 +68,11 @@ test('named clips reject duplicates and persist repeated key edits without rerun
   t.after(async () => { await new Promise<void>(r => server.close(() => r())); await rm(dir, { recursive: true, force: true }); });
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const suggestion = await (await fetch(base + '/api/clip-name')).json() as { name: string }; assert.match(suggestion.name, /^[a-z]+-[a-z]+$/);
-  const upload = (name: string) => fetch(base + '/api/jobs?' + new URLSearchParams({ filename: 'source.wav', name }), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: 'audio' });
-  const response = await upload('  My Song  '); assert.equal(response.status, 202); const job = await response.json() as { id: string };
+  const upload = (name: string, range = '{}') => fetch(base + '/api/jobs?' + new URLSearchParams({ filename: 'source.wav', name, range }), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: 'audio' });
+  assert.equal((await upload('invalid-range', JSON.stringify({ startSeconds: 10, endSeconds: 5 }))).status, 400);
+  const response = await upload('  My Song  ', JSON.stringify({ startSeconds: 90, endSeconds: 120 })); assert.equal(response.status, 202); const job = await response.json() as { id: string };
   const limit = Date.now() + 2000; while (jobs.pending && Date.now() < limit) await new Promise(r => setTimeout(r, 10));
+  assert.deepEqual(receivedRange, { startSeconds: 90, endSeconds: 120 });
   assert.equal((await upload('my   song')).status, 409); assert.equal(inferences, 1);
   const patch = (notationKey: unknown) => fetch(base + `/api/jobs/${job.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notationKey }) });
   for (const key of [{ tonic: 'F#', mode: 'minor' }, { tonic: 'Db', mode: 'major' }, null]) assert.equal((await patch(key)).status, 200);

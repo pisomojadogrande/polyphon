@@ -31,12 +31,12 @@ Open **http://127.0.0.1:3000** on the same machine. `python/requirements-lock.tx
 
 If upgrading, stop the server, run `git pull --ff-only` and `npm ci`, then `npm run dev`. Your existing Python environment needs no changes for this phase.
 
-1. Open http://127.0.0.1:3000. Choose a **10–30 second** clip. Keep the generated dictionary-word name or enter your own unique name. Key is optional; no tempo/meter/voice questions are asked.
+1. Open http://127.0.0.1:3000. Choose a **10–30 second** clip. Keep the generated dictionary-word name or enter your own unique name. Key is optional; no tempo/meter/voice questions are asked. To transcribe a portion, expand **Transcribe part of the recording (optional)** and enter source start/end times as seconds or m:ss. Blank means beginning/end; the selected range must be within the recording and no longer than ten minutes.
 2. Click **Upload & transcribe**. The next page shows measured upload/model-window progress and named processing stages, then opens the score automatically.
-3. Play the grand staff and follow the moving cursor. Pause/resume, stop, seek, playback speed, and measure-page navigation remain available.
+3. Play the grand staff and follow the moving cursor. Pause/resume, stop, seek, playback speed, remain available. All lines appear in one scroll pane: the current line stays at the top during playback and seeking. Scroll manually while paused; Stop returns to the first line. Each measure label includes its original-source timestamp, including any selected start offset.
 4. After inspecting the notes, choose the actual tonic and major/minor, then click **Re-transcribe**. For your example, choose **F-sharp (F♯)** and **Minor**. The staff gains three sharps. Repeat with another key if desired.
 5. This button saves the key and re-engraves the existing notes; it does not rerun Basic Pitch, transpose pitches, or alter downloaded MIDI. Playback pauses at its current position and can resume.
-6. Use the expandable left rail to reopen previous named clips. Refresh or restart the server to check that their names and chosen keys persist. Older saved clips migrate automatically; conflicting old names receive numbered suffixes.
+6. Use the expandable left rail to reopen previous named clips. Refresh or restart the server to check that their names and chosen keys persist. Each rail entry has a trash icon; deletion asks for confirmation with that clip’s name. Older saved clips migrate automatically; conflicting old names receive numbered suffixes.
 7. **Stop here and share feedback.** Please check the F-sharp-minor spellings, cursor behavior, and clip navigation. [Detailed workflow testing instructions](docs/workflow-testing.md). Measure-start editing and cloud remain deferred.
 
 No private recordings are included. To test without one:
@@ -56,10 +56,10 @@ The first rendering uses a fixed **120 BPM, 4/4, sixteenth-note display grid**. 
 
 ```sh
 npm run cli -- /path/to/clip.wav --out work/my-experiment \
-  --tempo 96 --time 6/8 --key "D minor" --voices "SATB a cappella"
+  --start 0:30 --end 1:00 --tempo 96 --time 6/8 --key "D minor" --voices "SATB a cappella"
 ```
 
-Output: `transcription.mid` and `report.json`. The CLI preserves source audio; an existing MIDI/report in the selected output folder is replaced. Choose a different folder for each experiment. Control-C cancels the worker and removes incomplete temporary outputs.
+Optional `--start`/`--end` accept seconds, m:ss, or h:mm:ss. Output: `transcription.mid` and `report.json`. MIDI starts at zero relative to the selection; report sourceRange records the original start/end/full duration. The CLI preserves source audio; an existing MIDI/report in the selected output folder is replaced. Choose a different folder for each experiment. Control-C cancels the worker and removes incomplete temporary outputs.
 
 To measure several representative clips, copy `docs/evaluation.example.json` to `work/recordings.json`, replace paths/guidance with your own clips, then run:
 
@@ -71,7 +71,7 @@ Paths are relative to your current working directory. Each batch creates its own
 
 ## Limits and storage
 
-- Supported extensions: WAV, FLAC, MP3, OGG, M4A; decoding support varies by installed codecs. Limit: 64 MiB and 600 seconds. Begin with much shorter clips.
+- Supported extensions: WAV, FLAC, MP3, OGG, M4A; decoding support varies by installed codecs. Limit: 64 MiB uploaded and 600 seconds selected for transcription. Begin with much shorter clips.
 - One CPU worker at a time; queue accepts at most three uploads/jobs. A worker is killed after 15 minutes. Failures remain visible; delete the failed clip and upload again.
 - Local web uploads live in `.polyphon/uploads` and are deleted after success, failure, or cancellation. Startup clears interrupted uploads. CLI source files are never deleted.
 - Names are unique ignoring case and normalized whitespace, including queued/failed clips. Delete a clip to reuse its name. Blank API names get available dictionary-word pairs. Key choices are stored in clip metadata; theoretical key spellings use a labeled conventional enharmonic signature.
@@ -86,10 +86,11 @@ Paths are relative to your current working directory. Each batch creates its own
 - `python/transcribe.py`: pinned Basic Pitch ONNX inference and real window progress.
 - `src/jobs.ts` / `src/server.ts`: local queue, lifecycle/storage controls, HTTP API.
 - `src/notation.ts`: shared display-only rhythm/pitch/accidental/tie conversion and source-time anchors.
-- `web/score.ts`: VexFlow SVG grand staff, bundled local fonts, measure navigation, and playback cursor.
+- `web/score.ts`: VexFlow SVG grand staff, bundled local fonts, source timestamps, continuous scrolling, and playback cursor.
 - `web/`: browser UI, MIDI parser, and Web Audio playback.
 - `tests/` / `python/test_transcribe.py`: validation, process, playback timing, HTTP, and lifecycle tests.
 - `.github/workflows/check.yml`: checks and actual Basic Pitch smoke test, **no deployment**.
+- [Continuous score/source-range plan](docs/scrolling-score-plan.md).
 - [Current workflow plan](docs/workflow-plan.md), [workflow testing](docs/workflow-testing.md), [previous raw notation plan](docs/raw-notation-plan.md).
 - [Agreed requirements](docs/requirements.md), [phase plan](docs/plan.md), [current progress and handoff](docs/progress.md), [original idea](docs/original-idea.md).
 

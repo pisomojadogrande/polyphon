@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseGuidance } from '../src/contracts.ts';
+import { parseGuidance, parseAudioRange, parseSourceTime } from '../src/contracts.ts';
 import { scheduleNotes } from '../web/player.ts';
 test('guidance preserves hints and validates MIDI grid', () => {
   assert.deepEqual(parseGuidance({}), { tempo: 120, timeSignature: [4, 4] });
@@ -16,4 +16,13 @@ test('playback seeking retains sustained notes, skips ended notes, scales time',
   assert.equal(scheduled.length, 2);
   assert.equal(scheduled[0].delay, 0); assert.equal(scheduled[0].length, 4);
   assert.equal(scheduled[1].delay, 2); assert.equal(scheduled[1].length, 2);
+});
+
+test('optional source ranges accept timestamps and reject reversed, invalid, and oversized selections', () => {
+  assert.deepEqual(parseAudioRange({}), { startSeconds: 0 });
+  assert.equal(parseSourceTime('1:30.5'), 90.5); assert.equal(parseSourceTime('1:02:03'), 3723);
+  assert.equal(parseSourceTime('90'), 90);
+  assert.deepEqual(parseAudioRange({ startSeconds: 90, endSeconds: 120 }), { startSeconds: 90, endSeconds: 120 });
+  for (const text of ['-1', '1:60', '1:2:90', 'NaN', '', '1:2:3:4']) assert.throws(() => parseSourceTime(text));
+  for (const value of [null, [], { startSeconds: -1 }, { startSeconds: '1' }, { endSeconds: 0 }, { startSeconds: 2, endSeconds: 1 }, { endSeconds: 601 }, { endSeconds: Infinity }]) assert.throws(() => parseAudioRange(value));
 });

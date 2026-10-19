@@ -50,9 +50,16 @@ Authority: the user's agreed onboarding requirements (2026-10-11), amended by te
 - Expandable left rail lists named saved clips and opens their results. Persist names and key choices locally across refresh/restart.
 - Implement locally, then pause and invite user testing. See `workflow-plan.md`.
 
+## Playback and source-range refinement (2026-10-18)
+- Add original-source timestamps beside every provisional measure number.
+- Render all grand-staff lines inside one vertically scrollable element; remove previous/next measure paging. During playback keep the current line at the top. Seeking also scrolls immediately, including while paused. Preserve manual scrolling while paused and keep the outer page still.
+- Optionally select source start/end times before transcription; blank endpoints mean beginning/end. Transcribe only that range. Measure timestamps refer to the original source while MIDI/playback remain relative to the selected segment.
+- Saved clips in the left rail also have a small trash icon with a confirmation naming the clip before deletion.
+- Keep running locally and pause for user testing. Detailed implementation/testing plan: `scrolling-score-plan.md`.
+
 ## Work sequence and stopping rules (updated 2026-10-18)
 1. Local audio-to-MIDI foundation and raw staff playback: implemented and user-tested.
-2. **Current milestone ready for review:** named-clip workflow and key-signature re-engraving. Pause for local testing; see `workflow-testing.md`.
+2. **Current milestone ready for review:** named-clip workflow, key-signature re-engraving, continuous playback following/source timestamps, and optional source range. Pause for local testing; see `workflow-testing.md`.
 3. Measure-start guidance, note editing, and transcription improvements await feedback; do not begin automatically.
 4. Cloud transcription remains deferred with its own eventual testing pause. No AWS deployment is authorized.
 5. Editing/export, voice refinement, and billing remain future work.

@@ -32,6 +32,31 @@ def validate_duration(seconds):
         raise ValueError("Audio must contain between 0 and 600 seconds (non-empty)")
 
 
+def selected_range(source_duration, start=0, end=None):
+    if not math.isfinite(source_duration) or source_duration <= 0:
+        raise ValueError("Recording must contain audio")
+    if not math.isfinite(start) or start < 0 or start >= source_duration:
+        raise ValueError("Start time must be within the recording")
+    end = source_duration if end is None else end
+    if not math.isfinite(end) or end <= start or end > source_duration:
+        raise ValueError("End time must be after start and within the recording")
+    validate_duration(end - start)
+    return start, end
+
+
+def range_windows(audio_path, start, duration, overlap, hop, sample_rate):
+    """Decode only the selected range, then use upstream Basic Pitch windowing."""
+    import librosa
+    import numpy as np
+    from polyphon_basic_pitch import inference
+    audio, _ = librosa.load(str(audio_path), sr=sample_rate, mono=True, offset=start, duration=duration)
+    length = len(audio)
+    validate_duration(length / sample_rate)
+    padded = np.concatenate([np.zeros(overlap // 2, dtype=np.float32), audio])
+    for window, window_time in inference.window_audio_file(padded, hop):
+        yield np.expand_dims(window, axis=0), window_time, length
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
@@ -39,6 +64,8 @@ def main():
     parser.add_argument("--tempo", type=float, default=120)
     parser.add_argument("--numerator", type=int, default=4)
     parser.add_argument("--denominator", type=int, default=4)
+    parser.add_argument("--start", type=float, default=0)
+    parser.add_argument("--end", type=float)
     args = parser.parse_args()
     started = time.perf_counter()
     stages = {}
@@ -57,14 +84,16 @@ def main():
     emit("decoding")
     decode_start = time.perf_counter()
     with contextlib.redirect_stdout(sys.stderr):
-        duration = float(librosa.get_duration(path=args.input))
-    validate_duration(duration)
+        source_duration = float(librosa.get_duration(path=args.input))
+    source_start, source_end = selected_range(source_duration, args.start, args.end)
+    duration = source_end - source_start
     # Basic Pitch 0.4.0 run_inference uses a fixed 30-frame overlap.
     overlap_frames = 30
     overlap = overlap_frames * FFT_HOP
     hop = AUDIO_N_SAMPLES - overlap
     output = {"note": [], "onset": [], "contour": []}
-    windows = inference.get_audio_input(args.input, overlap, hop)
+    windows = (inference.get_audio_input(args.input, overlap, hop) if source_start == 0 and args.end is None
+               else range_windows(args.input, source_start, duration, overlap, hop, AUDIO_SAMPLE_RATE))
     with contextlib.redirect_stdout(sys.stderr):
         first = next(windows)
     validate_duration(first[2] / AUDIO_SAMPLE_RATE)
@@ -99,7 +128,8 @@ def main():
     stages["writing"] = time.perf_counter() - write_start
     emit("complete", metrics={
         "schemaVersion": 1, "engine": f"basic-pitch {basic_pitch.UPSTREAM_VERSION} (Polyphon ONNX {importlib.metadata.version('polyphon-basic-pitch-onnx')})",
-        "backend": "ONNX", "durationSeconds": duration, "noteCount": len(events),
+        "backend": "ONNX", "durationSeconds": duration,
+        "sourceRange": {"startSeconds": source_start, "endSeconds": source_end, "sourceDurationSeconds": source_duration}, "noteCount": len(events),
         "runtimeSeconds": time.perf_counter() - started, "peakMemoryMiB": peak_memory_mib(),
         "stageSeconds": stages,
         "warnings": ["Basic Pitch does not identify singers or separate voice parts.", "Key and voice guidance are recorded, not applied to inference.", "Playback uses a simple synth and approximates pitch bends."] + (["No notes detected; try a louder or clearer clip."] if not events else []),

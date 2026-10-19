@@ -1,7 +1,7 @@
 # Phase plan
 
 ## Current direction (2026-10-18)
-The user has reviewed raw notation and requested the local named-clip workflow and key-signature refinement. See `workflow-plan.md` for the detailed saved design and `workflow-testing.md` for acceptance steps. Implementation is complete: upload → progress → keyed score, persistent clip rail, unique generated names, and repeated notation-only re-engraving. Pause for user testing. Measure guidance and cloud remain deferred.
+The user has reviewed raw notation and requested the local named-clip workflow and key-signature refinement. See `workflow-plan.md` for the detailed saved design and `workflow-testing.md` for acceptance steps. Implementation is complete: upload → progress → keyed score, persistent clip rail, unique generated names, and repeated notation-only re-engraving. Follow-up refinements are also implemented: source timestamps, continuous whole-score scrolling with active-line alignment on playback/seek, and optional source start/end selection. See `scrolling-score-plan.md`. Pause for user testing. Measure guidance and cloud remain deferred.
 
 
 ## Milestone 1: local audio → MIDI playback

@@ -9,7 +9,6 @@ export interface TimeAnchor { seconds: number; tick: number; }
 export interface RawScore { bars: ScoreBar[]; anchors: TimeAnchor[]; duration: number; noteCount: number; warnings: string[]; }
 export const TICKS_PER_BAR = 16;
 export const TICKS_PER_SECOND = 8; // Sixteenths on a provisional 120 BPM / 4/4 display grid.
-export const PAGE_BARS = 4;
 const SPELLINGS = ['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b'];
 export function spellPitch(midi: number, key: MusicalKey | null = null) {
   if (key) return keySpelling(midi, key);
@@ -87,6 +86,19 @@ export function tickAtTime(anchors: readonly TimeAnchor[], seconds: number): num
   while (low + 1 < high) { const middle = Math.floor((low + high) / 2); if (anchors[middle].seconds <= seconds) low = middle; else high = middle; }
   const a = anchors[low], b = anchors[high];
   return a.tick + (b.tick - a.tick) * (seconds - a.seconds) / (b.seconds - a.seconds);
+}
+/** Source time at a displayed tick; plateaus use their earliest source time. */
+export function timeAtTick(anchors: readonly TimeAnchor[], tick: number): number {
+  if (!anchors.length || tick <= 0) return 0;
+  let low = 0, high = anchors.length - 1;
+  if (tick > anchors[high].tick) return anchors[high].seconds;
+  while (low + 1 < high) { const middle = Math.floor((low + high) / 2); if (anchors[middle].tick < tick) low = middle; else high = middle; }
+  const a = anchors[low], b = anchors[high];
+  return b.tick === a.tick ? a.seconds : a.seconds + (b.seconds - a.seconds) * (tick - a.tick) / (b.tick - a.tick);
+}
+export function sourceTimestamp(seconds: number): string {
+  const tenths = Math.round(Math.max(0, seconds) * 10);
+  return `${Math.floor(tenths / 600)}:${(Math.floor(tenths / 10) % 60).toString().padStart(2, '0')}.${tenths % 10}`;
 }
 /** Explicit chromatic signs, plus cancellations so C after C# never reads as C#. */
 export function accidentalsForBar(events: readonly ScoreEvent[], key: MusicalKey | null = null): (string | null)[][] {

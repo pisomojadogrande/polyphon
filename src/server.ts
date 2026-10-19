@@ -10,7 +10,7 @@ import { Jobs } from './jobs.ts';
 import { transcribe } from './transcription.ts';
 import { acquireLock } from './lock.ts';
 import { parseMusicalKey, keyLabel } from './keys.ts';
-import { MAX_BYTES, EXTENSIONS, parseGuidance } from './contracts.ts';
+import { MAX_BYTES, EXTENSIONS, parseAudioRange, parseGuidance } from './contracts.ts';
 const root = fileURLToPath(new URL('../', import.meta.url));
 export async function createApp(directory = resolve(root, '.polyphon'), runner = transcribe) {
   const releaseLock = await acquireLock(directory);
@@ -40,6 +40,7 @@ export async function createApp(directory = resolve(root, '.polyphon'), runner =
         const guidance = parseGuidance({ ...JSON.parse(url.searchParams.get('guidance') ?? '{}'), ...(notationKey ? { key: keyLabel(notationKey) } : {}) });
         const length = Number(req.headers['content-length']);
         if (Number.isFinite(length) && length > MAX_BYTES) return send(413, { error: 'Maximum upload size is 64 MiB' });
+        const range = parseAudioRange(JSON.parse(url.searchParams.get('range') ?? '{}'));
         const reservation = jobs.reserveName(url.searchParams.get('name'));
         const input = join(directory, 'uploads', randomUUID() + ext);
         uploads++;
@@ -48,7 +49,7 @@ export async function createApp(directory = resolve(root, '.polyphon'), runner =
           const limit = new Transform({ transform(chunk: Buffer, _encoding, callback) { bytes += chunk.length; callback(bytes > MAX_BYTES ? new Error('Upload exceeds 64 MiB') : null, chunk); } });
           await pipeline(req, limit, createWriteStream(input, { flags: 'wx', mode: 0o600 }));
           if (bytes === 0) throw new Error('Empty upload');
-          const job = await jobs.add(input, reservation.name, guidance, { notationKey, sourceName: filename, reservation });
+          const job = await jobs.add(input, reservation.name, guidance, { range, notationKey, sourceName: filename, reservation });
           return send(202, job);
         } catch (err) { await rm(input, { force: true }); throw err; }
         finally { jobs.releaseName(reservation); uploads--; }

@@ -1,6 +1,16 @@
 # Current progress / clean-context handoff
 
-Updated: 2026-10-18. **Named-clip workflow and key-signature re-engraving are implemented and ready for local user testing. Stop here.**
+Updated: 2026-10-18. **Continuous score following, source timestamps, and optional transcription ranges are implemented and ready for local user testing. Stop here.**
+
+## Latest refinements: source ranges and continuous score
+- User requested original-source timestamps beside provisional measure labels, all lines in one scroll pane, playback/seek alignment of the active line at the top, and optional start/end transcription times. Saved detailed plan: `scrolling-score-plan.md`.
+- Removed page state/previous-next controls. All systems render once; playback moves the cursor and scrolls the pane, with trailing space so the final system can reach the top. Paused manual scrolling remains possible; seek/stop/key re-render realign. Outer document is not scrolled programmatically.
+- Timestamp labels invert the same source-time/display-tick mapping used by the cursor, to tenths of a second. These are provisional display-measure times, not detected real bar starts.
+- Optional upload start/end accept seconds, m:ss, or h:mm:ss. Blank means beginning/end. API and CLI share validated range contracts; Python checks bounds against the recording, decodes only the range, and uses upstream windowing. Selected range ≤600s, whole upload ≤64 MiB. Source files may be longer when a valid short range is selected.
+- Reports retain source start/end/full duration. MIDI starts at zero relative to the selection; labels add the source offset after reload/key changes. Old reports and local MIDI imports use zero offset. Full-file inference is unchanged. No vendored/dependency changes, AWS actions, or cloud work.
+- Verified: 37 Node tests/build/type checking, 10 Chromium browser tests, 7 Python tests. New checks cover inverse timestamps, end-of-score alignment, playback/paused seek/manual scrolling, original document position, range input errors/API propagation, source-offset reloads, and exact inference-window parity with a physically cropped WAV. Actual Basic Pitch 1–3s slice produced only the two expected middle notes, source metadata, and relative MIDI times. CI now repeats actual range smoke checks on Python 3.11/3.14.
+- Sidebar trash icons confirm the specific clip name before deletion. Cancel preserves it; deleting an unselected clip preserves current playback, while deleting the selected clip returns to upload. Error text stays in the rail. Browser regressions cover all three cases.
+- User instructions: `workflow-testing.md`. Next action is local user testing; do not advance to measure editing, model changes, or AWS automatically.
 
 ## Current workflow handoff (2026-10-18)
 - Requirements/design saved in `workflow-plan.md`; user instructions in `workflow-testing.md` and README. Previous raw-notation notes below are historical and superseded where they defer key input.

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, rm, readdir, stat, readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Guidance, Progress, Report } from './contracts.ts';
+import type { AudioRange, Guidance, Progress, Report } from './contracts.ts';
 import { transcribe } from './transcription.ts';
 import { cleanName, ConflictError, generatedName, nameIdentity } from './names.ts';
 import { legacyKey, parseMusicalKey } from './keys.ts';
@@ -15,7 +15,7 @@ export class Jobs {
   private reservations = new Map<string, symbol>();
   private busy = false;
   private closing = false;
-  private queue: { job: Job; input: string; guidance: Guidance }[] = [];
+  private queue: { job: Job; input: string; guidance: Guidance; range?: AudioRange }[] = [];
   private active?: { id: string; controller: AbortController };
   readonly directory: string;
   private runner: typeof transcribe;
@@ -74,7 +74,7 @@ export class Jobs {
     try { await writeFile(path, JSON.stringify(metadata, null, 2), { mode: 0o600 }); await rename(path, join(directory, 'job.json')); }
     finally { await rm(path, { force: true }); }
   }
-  async add(input: string, name: string, guidance: Guidance, options: { notationKey?: MusicalKey | null; sourceName?: string; reservation?: NameReservation } = {}) {
+  async add(input: string, name: string, guidance: Guidance, options: { range?: AudioRange; notationKey?: MusicalKey | null; sourceName?: string; reservation?: NameReservation } = {}) {
     if (this.closing) throw new Error('Local server is shutting down');
     const notationKey = parseMusicalKey(options.notationKey);
     const reservation = options.reservation ?? this.reserveName(name);
@@ -82,7 +82,7 @@ export class Jobs {
     const job: Job = { id: randomUUID(), name: reservation.name, sourceName: options.sourceName ?? name, notationKey, createdAt: Date.now(), progress: { stage: 'queued' } };
     this.jobs.set(job.id, job); this.releaseName(reservation);
     try { await this.save(job); } catch (error) { this.jobs.delete(job.id); await rm(this.output(job.id), { recursive: true, force: true }); throw error; }
-    this.queue.push({ job, input, guidance }); void this.runNext().catch(console.error); return job;
+    this.queue.push({ job, input, guidance, range: options.range }); void this.runNext().catch(console.error); return job;
   }
   async setKey(id: string, value: unknown) {
     const job = this.jobs.get(id);
@@ -97,7 +97,7 @@ export class Jobs {
     const { job, input, guidance } = item, controller = new AbortController();
     this.active = { id: job.id, controller };
     try {
-      const result = await this.runner({ input, output: this.output(job.id), guidance, signal: controller.signal, onProgress: progress => { if (progress.stage !== 'complete') job.progress = progress; } });
+      const result = await this.runner({ input, output: this.output(job.id), guidance, range: item.range, signal: controller.signal, onProgress: progress => { if (progress.stage !== 'complete') job.progress = progress; } });
       job.report = result.report; job.progress = { stage: 'complete' }; await this.save(job);
     } catch (err) {
       job.progress = { stage: 'failed' }; job.error = err instanceof Error ? err.message : String(err);

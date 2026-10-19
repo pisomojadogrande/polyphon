@@ -49,6 +49,8 @@ jobs:
       - run: npm run cli -- work/fixtures/silence.wav --out work/smoke/silence
       - run: .venv/bin/python python/check_smoke.py work/smoke/melody
       - run: .venv/bin/python python/check_regression.py work/smoke
+      - run: npm run cli -- work/fixtures/melody.wav --out work/smoke/range --start 0:01 --end 0:03
+      - run: .venv/bin/python python/check_range_smoke.py work/smoke/range
 
   browser-notation:
     runs-on: ubuntu-latest

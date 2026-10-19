@@ -48,3 +48,9 @@ test('unsupported or empty inputs are rejected before worker starts', async t =>
   await assert.rejects(transcribe(options), /non-empty/);
   await assert.rejects(transcribe({ ...options, input: join(options.dir, 'clip.txt') }), /Supported files/);
 });
+
+test('source range reaches the worker before inference', async t => {
+  const options = await setup(t, `const args=process.argv;if(args[args.indexOf('--start')+1]!=='90'||args[args.indexOf('--end')+1]!=='120')throw new Error('Missing range');console.log(JSON.stringify({stage:'failed',error:'Range delivered'}));process.exit(1);`);
+  await assert.rejects(transcribe({ ...options, range: { startSeconds: 90, endSeconds: 120 } }), /Range delivered/);
+  await assert.rejects(transcribe({ ...options, range: { startSeconds: 120, endSeconds: 90 } }), /End time/);
+});

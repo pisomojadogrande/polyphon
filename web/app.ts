@@ -3,13 +3,13 @@ import { ScoreView } from './score.ts';
 import { KeyControls } from './key-controls.ts';
 import { keyInfo, keyLabel } from '../src/keys.ts';
 import type { MusicalKey } from '../src/keys.ts';
-import { MAX_BYTES } from '../src/contracts.ts';
+import { parseAudioRange, parseSourceTime, MAX_BYTES } from '../src/contracts.ts';
 import type { Job } from '../src/jobs.ts';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const format = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const uploadKey = new KeyControls('upload'), scoreKey = new KeyControls('score');
 const play = $<HTMLButtonElement>('play'), stop = $<HTMLButtonElement>('stop'), position = $<HTMLInputElement>('position');
-const score = new ScoreView($<HTMLDivElement>('score'), $('score-status'), $<HTMLButtonElement>('score-previous'), $<HTMLButtonElement>('score-next'));
+const score = new ScoreView($<HTMLDivElement>('score'), $('score-status'));
 const player = new MidiPlayer((seconds, playing) => {
   position.value = String(seconds); $('clock').textContent = `${format(seconds)} / ${format(player.duration)}`;
   play.textContent = playing ? 'Pause' : 'Play'; score.update(seconds, playing);
@@ -46,7 +46,14 @@ function nav() {
     link.href = `#clips/${job.id}`; name.textContent = job.name; state.textContent = labels[job.progress.stage];
     if (selection() === job.id) link.setAttribute('aria-current', 'page');
     link.append(name, state); link.onclick = () => { if (matchMedia('(max-width:700px)').matches) collapsed(true); };
-    li.append(link); list.append(li);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'clip-delete';
+    remove.setAttribute('aria-label', `Delete ${job.name}`); remove.title = `Delete ${job.name}`;
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(icon.namespaceURI, 'path');
+    path.setAttribute('d', 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7'); icon.append(path); remove.append(icon);
+    remove.onclick = async () => { remove.disabled = true; try { await deleteClip(job.id, true); } finally { remove.disabled = false; } };
+    li.append(link, remove); list.append(li);
   }
 }
 function controls(enabled: boolean) { play.disabled = stop.disabled = position.disabled = !enabled; }
@@ -55,18 +62,19 @@ function keyCaption(key: MusicalKey | null) {
   const info = keyInfo(key);
   return keyLabel(key) + (info.enharmonic ? ` · rendered as ${keyLabel({ tonic: info.tonic as MusicalKey['tonic'], mode: key.mode })}, the equivalent conventional key` : '');
 }
-async function loadMidi(buffer: ArrayBuffer, name: string, key: MusicalKey | null, token: number) {
+async function loadMidi(buffer: ArrayBuffer, name: string, key: MusicalKey | null, token: number, sourceOffset = 0) {
   await document.fonts.ready;
   if (token !== generation) return;
   const notes = player.load(buffer); position.max = String(player.duration); controls(player.duration > 0);
   $('playing-name').textContent = player.duration === 0 ? 'No MIDI notes detected.' : '';
   scoreKey.set(key); appliedKey = key; $('key-caption').textContent = keyCaption(key); $('key-status').textContent = '';
-  try { await score.load(notes, key); }
+  try { await score.load(notes, key, sourceOffset); }
   catch (error) { if (token === generation) { score.clear(); $('score').textContent = 'Notation could not be rendered. MIDI playback is still available.'; $('score-status').textContent = String(error); } }
 }
 function resultInfo(job?: Job) {
   $('result-title').textContent = job?.name ?? localPreview?.name ?? 'Your score';
-  $('result-caption').textContent = job ? 'Saved clip · choose its key after inspecting the score.' : 'Local MIDI preview · not saved in your clips.';
+  const range = job?.report?.sourceRange;
+  $('result-caption').textContent = job ? `Saved clip${range ? ` · Source ${format(range.startSeconds)}–${format(range.endSeconds)}` : ''} · choose its key after inspecting the score.` : 'Local MIDI preview · not saved in your clips.';
   $('preview-original').hidden = !job || previewClip !== job.id || !previewUrl;
   const metrics = job?.report;
   $('result-metrics').textContent = metrics ? `${metrics.noteCount} notes · ${metrics.durationSeconds.toFixed(1)}s audio · ${metrics.runtimeSeconds.toFixed(1)}s processing · ${metrics.peakMemoryMiB.toFixed(0)} MiB peak memory. ${metrics.warnings.join(' ')}` : '';
@@ -122,7 +130,7 @@ async function showRoute() {
     try {
       const response = await fetch(`/api/jobs/${id}/midi`); if (!response.ok) throw new Error('MIDI is unavailable or expired.');
       const buffer = await response.arrayBuffer(); if (token !== generation) return;
-      await loadMidi(buffer, job.name, job.notationKey ?? null, token);
+      await loadMidi(buffer, job.name, job.notationKey ?? null, token, job.report?.sourceRange?.startSeconds ?? 0);
       if (token === generation) { loadedId = id; $('result-message').textContent = ''; }
     } catch (error) { if (token === generation) { loadedId = id; $('result-message').textContent = `Could not load this clip: ${String(error)}. Select another clip and return to retry.`; } }
     finally { if (token === generation) { loadingId = ''; $<HTMLButtonElement>('apply-key').disabled = false; } }
@@ -173,7 +181,12 @@ $<HTMLFormElement>('upload').onsubmit = async event => {
   if (!form.reportValidity()) return;
   const file = $<HTMLInputElement>('audio').files?.[0]; if (!file) return;
   if (file.size === 0 || file.size > MAX_BYTES) { status.textContent = 'Choose a non-empty recording under 64 MiB.'; return; }
-  const params = new URLSearchParams({ filename: file.name, name: input.value, key: JSON.stringify(uploadKey.get()) });
+  let range;
+  try {
+    const start = $<HTMLInputElement>('range-start').value.trim(), end = $<HTMLInputElement>('range-end').value.trim();
+    range = parseAudioRange({ startSeconds: start ? parseSourceTime(start) : 0, ...(end ? { endSeconds: parseSourceTime(end) } : {}) });
+  } catch (error) { status.textContent = error instanceof Error ? error.message : String(error); return; }
+  const params = new URLSearchParams({ filename: file.name, name: input.value, key: JSON.stringify(uploadKey.get()), range: JSON.stringify(range) });
   const xhr = new XMLHttpRequest(); uploadRequest = xhr; uploadName = input.value; $<HTMLButtonElement>('submit').disabled = true;
   $<HTMLProgressElement>('progress').value = 0; $('stage').textContent = 'Uploading audio…'; navigate('#uploading');
   const finish = () => { uploadRequest = null; $<HTMLButtonElement>('submit').disabled = false; };
@@ -208,10 +221,16 @@ $<HTMLFormElement>('score-key-form').onsubmit = async event => {
   } catch (error) { if (token === generation) $('key-status').textContent = `Could not rewrite the score: ${String(error)}`; }
   finally { applyingKey = false; button.disabled = false; }
 };
-async function deleteClip() {
-  const id = selection(); if (!id) return;
-  try { await json(`/api/jobs/${id}`, { method: 'DELETE' }); revision++; jobs.delete(id); navigate('#new'); void suggest(); nav(); }
-  catch (error) { ($('result-page').hidden ? $('progress-error') : $('result-message')).textContent = String(error); }
+async function deleteClip(id = selection(), confirm = false) {
+  if (!id) return;
+  const job = jobs.get(id);
+  if (confirm && !window.confirm(`Delete ${job?.name ?? 'this clip'}?`)) return;
+  $('clip-error').textContent = '';
+  try {
+    await json(`/api/jobs/${id}`, { method: 'DELETE' }); revision++; jobs.delete(id);
+    if (selection() === id) { navigate('#new'); void suggest(); }
+    nav();
+  } catch (error) { $('clip-error').textContent = `Could not delete ${job?.name ?? 'clip'}: ${String(error)}`; }
 }
 $('delete-clip').onclick = () => { void deleteClip(); };
 $('cancel-clip').onclick = () => { if (uploadRequest && location.hash === '#uploading') uploadRequest.abort(); else void deleteClip(); };
