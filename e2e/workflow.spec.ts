@@ -169,3 +169,28 @@ test('rail trash confirms the clip name, cancellation preserves it, and deleting
   await expect(page.locator('#new-page')).toBeVisible(); expect(deletions).toBe(2);
   await expect(page.locator('#clips-empty')).toBeVisible();
 });
+
+test('selected recording can play and seek above the range fields before transcription', async ({ page }) => {
+  const rate = 8000, samples = rate * 3, wav = Buffer.alloc(44 + samples * 2);
+  wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+  wav.write('data', 36); wav.writeUInt32LE(samples * 2, 40);
+  for (let i = 0; i < samples; i++) wav.writeInt16LE(Math.round(Math.sin(i * 440 * 2 * Math.PI / rate) * 3000), 44 + i * 2);
+  let uploads = 0; page.on('request', request => { if (request.method() === 'POST') uploads++; });
+  await page.goto('/'); await expect(page.locator('#upload-preview')).toBeHidden();
+  await page.locator('#audio').setInputFiles({ name: 'listen.wav', mimeType: 'audio/wav', buffer: wav });
+  const audio = page.locator('#upload-audio'); await expect(audio).toBeVisible();
+  await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).duration)).toBe(3);
+  expect(await page.evaluate(() => document.getElementById('upload-preview')!.compareDocumentPosition(document.getElementById('range-options')!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  await audio.evaluate(el => (el as HTMLAudioElement).play());
+  await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).currentTime)).toBeGreaterThan(0.1);
+  await audio.evaluate(el => { const audio = el as HTMLAudioElement; audio.pause(); audio.currentTime = 1.5; });
+  await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).currentTime)).toBeCloseTo(1.5, 1);
+  await page.locator('#range-options summary').click(); await page.locator('#range-start').fill('0:01.5');
+  await page.locator('#range-end').fill('0:02.5'); expect(uploads).toBe(0);
+  await audio.evaluate(el => (el as HTMLAudioElement).play());
+  await page.locator('#new-clip').click(); await expect(page.locator('#upload-preview')).toBeHidden();
+  expect(await audio.evaluate(el => (el as HTMLAudioElement).paused)).toBe(true);
+  await expect(page.locator('#range-start')).toHaveValue('');
+});

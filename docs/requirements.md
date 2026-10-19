@@ -53,6 +53,7 @@ Authority: the user's agreed onboarding requirements (2026-10-11), amended by te
 ## Playback and source-range refinement (2026-10-18)
 - Add original-source timestamps beside every provisional measure number.
 - Render all grand-staff lines inside one vertically scrollable element; remove previous/next measure paging. During playback keep the current line at the top. Seeking also scrolls immediately, including while paused. Preserve manual scrolling while paused and keep the outer page still.
+- After selecting a media file, show a source-audio playback/seek control immediately above **Transcribe part of the recording**, so users can find the source times before submitting.
 - Optionally select source start/end times before transcription; blank endpoints mean beginning/end. Transcribe only that range. Measure timestamps refer to the original source while MIDI/playback remain relative to the selected segment.
 - Saved clips in the left rail also have a small trash icon with a confirmation naming the clip before deletion.
 - Keep running locally and pause for user testing. Detailed implementation/testing plan: `scrolling-score-plan.md`.

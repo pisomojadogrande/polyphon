@@ -88,7 +88,7 @@ async function showRoute() {
   const route = location.hash || '#new', id = selection();
   if (route !== routeKey) {
     routeKey = route; generation++; loadedId = ''; loadingId = ''; player.stop(); score.clear(); controls(false);
-    $<HTMLAudioElement>('original').pause(); $('result-message').textContent = ''; $('key-status').textContent = '';
+    $<HTMLAudioElement>('original').pause(); $<HTMLAudioElement>('upload-audio').pause(); $('result-message').textContent = ''; $('key-status').textContent = '';
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
   nav();
@@ -152,7 +152,7 @@ async function suggest(force = false) {
 }
 function newClip() {
   if (matchMedia('(max-width:700px)').matches) collapsed(true);
-  if (!uploadRequest) { $<HTMLFormElement>('upload').reset(); uploadKey.set(null); $('upload-status').textContent = ''; void suggest(true); }
+  if (!uploadRequest) { const preview = $<HTMLAudioElement>('upload-audio'); preview.pause(); preview.removeAttribute('src'); preview.load(); $('upload-preview').hidden = true; $<HTMLFormElement>('upload').reset(); uploadKey.set(null); $('upload-status').textContent = ''; void suggest(true); }
   navigate('#new');
 }
 $('new-clip').onclick = newClip; $('retry-clip').onclick = newClip; $('generate-name').onclick = () => { void suggest(true); };
@@ -163,11 +163,20 @@ play.onclick = async () => {
 stop.onclick = () => { score.follow(); player.stop(); };
 position.oninput = () => { score.follow(); player.seek(Number(position.value)); };
 $<HTMLSelectElement>('speed').onchange = () => player.pause();
-$<HTMLAudioElement>('original').onplay = () => player.pause();
+$<HTMLAudioElement>('original').onplay = () => { player.pause(); $<HTMLAudioElement>('upload-audio').pause(); };
+$<HTMLAudioElement>('upload-audio').onplay = () => { player.pause(); $<HTMLAudioElement>('original').pause(); };
+$<HTMLAudioElement>('upload-audio').onerror = () => {
+  if ($<HTMLAudioElement>('upload-audio').getAttribute('src')) $('upload-preview-hint').textContent = 'This browser could not play this recording. Try a WAV or MP3 preview to find your times, or enter known times below.';
+};
 $<HTMLInputElement>('audio').onchange = event => {
   const file = (event.target as HTMLInputElement).files?.[0];
+  const preview = $<HTMLAudioElement>('upload-audio'), original = $<HTMLAudioElement>('original');
+  preview.pause(); original.pause();
   if (previewUrl) URL.revokeObjectURL(previewUrl); previewUrl = ''; previewClip = '';
-  if (file) { previewUrl = URL.createObjectURL(file); $<HTMLAudioElement>('original').src = previewUrl; }
+  $('upload-preview').hidden = !file;
+  $('upload-preview-hint').textContent = 'Listen and seek to find the source start and end times for your transcription.';
+  if (file) { previewUrl = URL.createObjectURL(file); preview.src = original.src = previewUrl; }
+  else { for (const audio of [preview, original]) { audio.removeAttribute('src'); audio.load(); } }
 };
 $<HTMLInputElement>('midi').onchange = async event => {
   const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return;
@@ -235,6 +244,6 @@ async function deleteClip(id = selection(), confirm = false) {
 $('delete-clip').onclick = () => { void deleteClip(); };
 $('cancel-clip').onclick = () => { if (uploadRequest && location.hash === '#uploading') uploadRequest.abort(); else void deleteClip(); };
 window.addEventListener('hashchange', () => { void showRoute(); });
-window.addEventListener('pagehide', () => { player.stop(); if (previewUrl) URL.revokeObjectURL(previewUrl); });
+window.addEventListener('pagehide', () => { player.stop(); $<HTMLAudioElement>('upload-audio').pause(); $<HTMLAudioElement>('original').pause(); if (previewUrl) URL.revokeObjectURL(previewUrl); });
 if (!location.hash) history.replaceState(null, '', '#new');
 void showRoute(); void suggest(); void refresh(); setInterval(() => void refresh(), 1000);

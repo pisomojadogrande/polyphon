@@ -2,6 +2,11 @@
 
 Updated: 2026-10-18. **Continuous score following, source timestamps, and optional transcription ranges are implemented and ready for local user testing. Stop here.**
 
+## Latest follow-up: listen before choosing a range
+- The upload form now shows **Listen to the recording** directly above the optional range controls immediately after choosing a file. Native audio controls provide playback, seeking, and source times before any upload/transcription request.
+- Uses the selected local file's existing blob URL. Replacing/clearing a file pauses playback; starting a new clip hides/resets the player; navigation pauses it. Original-result comparison remains session-only. Unsupported browser playback shows an inline message.
+- Verified `npm run check` (37 Node tests, type checking and build) and all 11 browser tests. Added a browser regression using an actual three-second generated WAV to verify decoded duration, playback/seek, placement above range controls, no premature submission, and reset. No Python/dependency/AWS changes. Pause for local testing.
+
 ## Latest refinements: source ranges and continuous score
 - User requested original-source timestamps beside provisional measure labels, all lines in one scroll pane, playback/seek alignment of the active line at the top, and optional start/end transcription times. Saved detailed plan: `scrolling-score-plan.md`.
 - Removed page state/previous-next controls. All systems render once; playback moves the cursor and scrolls the pane, with trailing space so the final system can reach the top. Paused manual scrolling remains possible; seek/stop/key re-render realign. Outer document is not scrolled programmatically.

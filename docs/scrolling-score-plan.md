@@ -21,3 +21,6 @@ Implemented; local checks: 37 Node tests, 10 browser tests, 7 Python tests. Actu
 
 ## Sidebar deletion (additional request)
 Each saved-clip row now has a small accessible trash icon beside its link. A browser confirmation names the clip (`Delete word1-word2?`); cancel leaves it intact. Confirm uses existing server deletion/cancellation and storage cleanup. Deleting the selected clip returns to upload; deleting a different clip preserves current playback/selection. Errors remain visible in the rail. Browser regression checks cancellation and both deletion paths.
+
+## Pre-transcription listening (additional request)
+Show a native audio player immediately above the optional source-range disclosure as soon as a recording is selected. Preview the local file with a blob URL, before upload/transcription; allow play/pause and seeking to identify timestamps. Pause when leaving upload, replacing the file, or starting a new clip. Hide/reset the player for a new clip; retain existing session-only result comparison behavior. Explain browser playback failures beside the player. Validate with a real generated WAV in Chromium (metadata, playback clock, seeking, DOM placement, no premature POST, reset). No dependency or Python changes.
